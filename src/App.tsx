@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import type React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import tregtiaLogo from "@/assets/tregtia-logo.png";
 import { initParticleField } from "./ThreeCanvas";
 import AdminPage from "./cms/AdminPage";
-import { loadCms, saveCms, isSafeHttpUrl, type CmsData } from "./cms/storage";
+import { isSafeHttpUrl } from "./cms/storage";
+import siteData from "./content/site-data.json";
 
 function ParticleField() {
   const ref = useRef<HTMLDivElement>(null);
@@ -39,129 +40,13 @@ type Project = {
   investor: string; use: string; img: string; images: string[]; alt: string; desc: string; specs: string;
 };
 
-// ── Data — real images from tregtia.biz ───────────────────────────────────────
-const PROJECTS: Project[] = [
-  {
-    id: "kodrina-apollonia",
-    name: "Kodrina — Apollonia",
-    neighborhood: "Kodrina", location: "Prishtinë",
-    investor: "Tregtia Sh.p.k", use: "Residential",
-    img: "https://tregtia.biz/wp-content/uploads/2020/09/5-scaled.jpg",
-    images: [
-      "https://tregtia.biz/wp-content/uploads/2020/09/5-scaled.jpg",
-      "https://tregtia.biz/wp-content/uploads/2020/09/3-scaled.jpg",
-      "https://tregtia.biz/wp-content/uploads/2020/09/1-scaled.jpg",
-      "https://tregtia.biz/wp-content/uploads/2021/08/Masterplani-1.jpg",
-    ],
-    alt: "Kodrina Apollonia",
-    desc: "A 21-hectare urban masterplan for over 15,000 future residents, designed by Studio Libeskind. Tregtia is the developer and builder delivering 11 residential blocks with apartments from 45 to 170 m².",
-    specs: "21 ha · 11 blocks · 15,000+ residents · 45–170 m²",
-  },
-  {
-    id: "aktash-davidofi",
-    name: "Aktash — Davidofi",
-    neighborhood: "Aktash", location: "Prishtinë",
-    investor: "Tregtia Sh.p.k", use: "Residential & Commercial",
-    img: "https://tregtia.biz/wp-content/uploads/2020/09/1-1.jpg",
-    images: [
-      "https://tregtia.biz/wp-content/uploads/2020/09/1-1.jpg",
-      "https://tregtia.biz/wp-content/gallery/aktash-davidofi/DSC_0812.JPG",
-      "https://tregtia.biz/wp-content/gallery/aktash-davidofi/DSC_0813.JPG",
-      "https://tregtia.biz/wp-content/gallery/aktash-davidofi/DSC_0814.JPG",
-      "https://tregtia.biz/wp-content/gallery/aktash-davidofi/DSC_0819.JPG",
-    ],
-    alt: "Aktash Davidofi",
-    desc: "Two residential blocks in the Aktash neighbourhood of Prishtinë — one nearing completion, one occupied. 70 residential units with ground-floor commercial spaces, underground parking, and full Tregtia in-house construction.",
-    specs: "2 blocks · 70 units · B+P · Commercial ground floor · Underground parking",
-  },
-  {
-    id: "aktash-1-tetori",
-    name: "Aktash 1 Tetori",
-    neighborhood: "Aktash", location: "Prishtinë",
-    investor: "Tregtia Sh.p.k", use: "Residential & Commercial",
-    img: "https://tregtia.biz/wp-content/uploads/2020/09/DSC_0834-1200x600.jpg",
-    images: [
-      "https://tregtia.biz/wp-content/uploads/2020/09/DSC_0834-1200x600.jpg",
-      "https://tregtia.biz/wp-content/gallery/aktash-1-tetori/DSC_0831.JPG",
-      "https://tregtia.biz/wp-content/gallery/aktash-1-tetori/DSC_0833.JPG",
-      "https://tregtia.biz/wp-content/gallery/aktash-1-tetori/DSC_0834.JPG",
-    ],
-    alt: "Aktash 1 Tetori",
-    desc: "Residential building in the Aktash neighbourhood of Prishtinë. 25 residential units delivered with Tregtia's full in-house production capability — concrete, joinery, and glazing from Tregtia's own manufacturing facilities.",
-    specs: "B+P+4+NK · 25 units · Commercial basement & ground floor",
-  },
-  {
-    id: "aktash-daxa",
-    name: "Aktash Daxa",
-    neighborhood: "Aktash", location: "Prishtinë",
-    investor: "Tregtia Sh.p.k", use: "Residential & Commercial",
-    img: "https://tregtia.biz/wp-content/uploads/2020/09/DSC_0823-1200x600.jpg",
-    images: [
-      "https://tregtia.biz/wp-content/uploads/2020/09/DSC_0823-1200x600.jpg",
-      "https://tregtia.biz/wp-content/gallery/aktash-daxa/DSC_0820.JPG",
-      "https://tregtia.biz/wp-content/gallery/aktash-daxa/DSC_0821.JPG",
-      "https://tregtia.biz/wp-content/gallery/aktash-daxa/DSC_0822.JPG",
-      "https://tregtia.biz/wp-content/gallery/aktash-daxa/DSC_0826.JPG",
-      "https://tregtia.biz/wp-content/gallery/aktash-daxa/DSC_0828.JPG",
-    ],
-    alt: "Aktash Daxa",
-    desc: "Residential building in the Aktash neighbourhood of Prishtinë. 18 apartments alongside commercial spaces on the ground floor and basement levels. Delivered with Tregtia's own concrete, PVC windows, and metalwork.",
-    specs: "B+P+4+2NK · 18 units · Commercial ground floor & basement",
-  },
-  {
-    id: "apollonia-a19",
-    name: "Apollonia A19",
-    neighborhood: "Fushë Kosovë", location: "Fushë Kosovë",
-    investor: "Tregtia Sh.p.k", use: "Residential & Commercial",
-    img: "https://tregtia.biz/wp-content/gallery/apollonia-a19/DSC_0401.JPG",
-    images: [
-      "https://tregtia.biz/wp-content/gallery/apollonia-a19/DSC_0401.JPG",
-      "https://tregtia.biz/wp-content/gallery/apollonia-a19/DSC_0404.JPG",
-      "https://tregtia.biz/wp-content/gallery/apollonia-a19/DSC_0405.JPG",
-      "https://tregtia.biz/wp-content/gallery/apollonia-a19/DSC_0409.JPG",
-      "https://tregtia.biz/wp-content/gallery/apollonia-a19/DSC_0413.JPG",
-      "https://tregtia.biz/wp-content/gallery/apollonia-a19/DSC_0414.JPG",
-      "https://tregtia.biz/wp-content/gallery/apollonia-a19/DSC_0416.JPG",
-    ],
-    alt: "Apollonia A19",
-    desc: "Large-scale residential complex in Fushë Kosovë, consisting of 5 entrances over 8 floors with more than 114 residential units. Ground-floor commercial spaces, basement parking, and full Tregtia in-house supply chain.",
-    specs: "5 entrances · B+P+7 · 114+ units · Commercial ground floor",
-  },
-  {
-    id: "apollonia-a20",
-    name: "Apollonia A20",
-    neighborhood: "Fushë Kosovë", location: "Fushë Kosovë",
-    investor: "Tregtia Sh.p.k", use: "Residential & Commercial",
-    img: "https://tregtia.biz/wp-content/gallery/apollonia-a20/DSC_0453.JPG",
-    images: [
-      "https://tregtia.biz/wp-content/gallery/apollonia-a20/DSC_0453.JPG",
-      "https://tregtia.biz/wp-content/gallery/apollonia-a20/DSC_0457.JPG",
-      "https://tregtia.biz/wp-content/gallery/apollonia-a20/DSC_0461.JPG",
-      "https://tregtia.biz/wp-content/gallery/apollonia-a20/DSC_0482.JPG",
-      "https://tregtia.biz/wp-content/gallery/apollonia-a20/DSC_0484.JPG",
-    ],
-    alt: "Apollonia A20",
-    desc: "Four-block residential complex in Fushë Kosovë. Approximately 166 apartments with ground-floor commercial units, basement garages, an interior courtyard with open parking, and landscaped green spaces.",
-    specs: "4 blocks · B+P+7 · ~166 units · Interior courtyard · Green spaces",
-  },
-  {
-    id: "apollonia-a21",
-    name: "Apollonia A21",
-    neighborhood: "Fushë Kosovë", location: "Fushë Kosovë",
-    investor: "Tregtia Sh.p.k", use: "Residential & Commercial",
-    img: "https://tregtia.biz/wp-content/gallery/apollonia-a21/DSC_0474.JPG",
-    images: [
-      "https://tregtia.biz/wp-content/gallery/apollonia-a21/DSC_0474.JPG",
-      "https://tregtia.biz/wp-content/gallery/apollonia-a21/DSC_0480.JPG",
-      "https://tregtia.biz/wp-content/gallery/apollonia-a21/DSC_0481.JPG",
-      "https://tregtia.biz/wp-content/gallery/apollonia-a21/DSC_0487.JPG",
-      "https://tregtia.biz/wp-content/gallery/apollonia-a21/DSC_0495.JPG",
-    ],
-    alt: "Apollonia A21",
-    desc: "Five-building residential complex in Fushë Kosovë. Approximately 170 apartments with ground-floor commercial spaces, basement parking, an interior courtyard with open parking, and green areas throughout.",
-    specs: "5 buildings · B+P+7 · ~170 units · Basement parking · Green areas",
-  },
-];
+// ── Editable content (projects, hero images, social links) — src/content/site-data.json ──
+// This is the single source of truth for CMS-editable content. The admin panel
+// (src/cms) writes back to this same file via a GitHub commit; App.tsx just
+// renders whatever is currently in it.
+const PROJECTS = siteData.projects as Project[];
+const HERO_IMAGES: string[] = siteData.heroImages;
+const DEFAULT_SOCIAL = siteData.social;
 
 const TIMELINE = [
   { id: "tl-1", year: "1999", titleEn: "Foundation", titleSq: "Themelimi", descEn: "Bedri Prishtina registers Tregtia in Prishtina amid Kosovo's post-war reconstruction, with a conviction that building is inseparable from nation-making.", descSq: "Bedri Prishtina regjistron Tregtia në Prishtinë mes rindërtimit të pasluftës të Kosovës, me bindjen se ndërtimi është i pandashëm nga krijimi i kombit." },
@@ -192,13 +77,6 @@ const PRODUCTION_TAGS_SQ = ["Dritare PVC — sistemi TROCAL", "Fabrikim metalesh
 const NEIGHBORHOODS_EN = ["All", "Kodrina", "Aktash", "Fushë Kosovë"];
 const NEIGHBORHOODS_SQ = ["Të gjitha", "Kodrina", "Aktash", "Fushë Kosovë"];
 const NEIGHBORHOOD_KEYS = ["All", "Kodrina", "Aktash", "Fushë Kosovë"];
-
-const HERO_IMAGES = [
-  "https://images.unsplash.com/photo-1691425700573-5e2e6e4f6157?w=1600&h=1200&fit=crop&auto=format&q=85",
-  "https://images.unsplash.com/photo-1486325212027-8081e485255e?w=1600&h=1200&fit=crop&auto=format&q=85",
-  "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=1600&h=1200&fit=crop&auto=format&q=85",
-  "https://images.unsplash.com/photo-1580216643062-cf460548a66a?w=1600&h=1200&fit=crop&auto=format&q=85",
-];
 
 const SLIDESHOW_INTERVAL = 4500;
 
@@ -984,13 +862,6 @@ export default function App() {
   const [lang, setLang] = useState<Lang>("en");
   const [page, setPage] = useState<Page>({ type: "home" });
   const [isAdmin, setIsAdmin] = useState(window.location.hash === "#admin");
-  const [cmsData, setCmsData] = useState<CmsData | null>(() => loadCms());
-
-  // Sync CMS data when admin saves
-  const handleCmsChange = useCallback((d: CmsData) => {
-    saveCms(d);
-    setCmsData(d);
-  }, []);
 
   // Listen for hash changes to enter/exit admin
   useEffect(() => {
@@ -999,18 +870,12 @@ export default function App() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
-  // Merge: use CMS data when available, fall back to hardcoded defaults
-  const activeProjects = cmsData?.projects ?? PROJECTS;
-  const activeHeroImages = cmsData?.heroImages?.length ? cmsData.heroImages : HERO_IMAGES;
-  const activeSocial = cmsData?.social ?? { instagram: "", facebook: "" };
-
-  // Default CMS data (used on first-time setup). Memoized so AdminPage's effect
-  // dependency on this object doesn't fire on every render.
-  const defaultCmsData = useMemo<CmsData>(() => ({
-    projects: PROJECTS,
-    heroImages: HERO_IMAGES,
-    social: { instagram: "", facebook: "" },
-  }), []);
+  // Content is baked into the build from src/content/site-data.json. The admin
+  // panel edits that same file (via a GitHub commit), which triggers a redeploy —
+  // there's no runtime override to merge here.
+  const activeProjects = PROJECTS;
+  const activeHeroImages = HERO_IMAGES;
+  const activeSocial = DEFAULT_SOCIAL;
 
   const goHome = useCallback(() => {
     setPage({ type: "home" });
@@ -1023,7 +888,7 @@ export default function App() {
   }, []);
 
   if (isAdmin) {
-    return <AdminPage defaultData={defaultCmsData} onDataChange={handleCmsChange} />;
+    return <AdminPage />;
   }
 
   return (

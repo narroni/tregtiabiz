@@ -1,10 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  createPasswordRecord, verifyPassword, loadCms, saveCms, getStoredPasswordRecord, storePasswordRecord,
-  isAuthed, setAuthed, getLockoutRemainingMs, recordFailedAttempt, clearAttempts, isSafeHttpUrl,
-  type CmsData, type CmsProject,
-} from "./storage";
+import { isSafeHttpUrl, type CmsData, type CmsProject } from "./storage";
+import siteData from "../content/site-data.json";
 
 // ── Palette (mirrors App.tsx) ─────────────────────────────────────────────────
 const C = {
@@ -18,6 +15,7 @@ const T = {
 };
 
 type Tab = "projects" | "hero" | "social";
+type Session = "loading" | "authed" | "anon";
 
 const EMPTY_PROJECT: CmsProject = {
   id: "", name: "", neighborhood: "", location: "", investor: "Tregtia Sh.p.k",
@@ -28,10 +26,14 @@ function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
 
+async function readJsonSafe(res: Response): Promise<{ error?: string }> {
+  try { return await res.json(); } catch { return {}; }
+}
+
 // ── Input helpers ─────────────────────────────────────────────────────────────
-function Field({ label, value, onChange, multiline = false, placeholder = "" }: {
+function Field({ label, value, onChange, multiline = false, placeholder = "", type = "text" }: {
   label: string; value: string; onChange: (v: string) => void;
-  multiline?: boolean; placeholder?: string;
+  multiline?: boolean; placeholder?: string; type?: string;
 }) {
   const shared: React.CSSProperties = {
     fontFamily: T.body, fontSize: 13, color: C.headline, background: C.white,
@@ -47,7 +49,7 @@ function Field({ label, value, onChange, multiline = false, placeholder = "" }: 
             style={{ ...shared, resize: "vertical" }}
             onFocus={(e) => (e.currentTarget.style.borderColor = C.brand)}
             onBlur={(e) => (e.currentTarget.style.borderColor = C.divider)} />
-        : <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+        : <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
             style={shared}
             onFocus={(e) => (e.currentTarget.style.borderColor = C.brand)}
             onBlur={(e) => (e.currentTarget.style.borderColor = C.divider)} />
@@ -56,78 +58,60 @@ function Field({ label, value, onChange, multiline = false, placeholder = "" }: 
   );
 }
 
-function Btn({ children, onClick, variant = "primary", small = false, danger = false }: {
+function Btn({ children, onClick, variant = "primary", small = false, danger = false, disabled = false }: {
   children: React.ReactNode; onClick: () => void;
-  variant?: "primary" | "ghost"; small?: boolean; danger?: boolean;
+  variant?: "primary" | "ghost"; small?: boolean; danger?: boolean; disabled?: boolean;
 }) {
   const bg = danger ? C.danger : variant === "primary" ? C.brand : "transparent";
   const col = variant === "primary" || danger ? C.white : C.body;
   const border = variant === "ghost" ? `1px solid ${C.divider}` : "none";
   return (
-    <motion.button whileTap={{ scale: 0.97 }} onClick={onClick}
+    <motion.button whileTap={disabled ? undefined : { scale: 0.97 }} onClick={onClick} disabled={disabled}
       style={{ fontFamily: T.body, fontSize: small ? 12 : 13, fontWeight: 500, color: col, background: bg,
-        border, borderRadius: 7, padding: small ? "6px 14px" : "9px 20px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
+        border, borderRadius: 7, padding: small ? "6px 14px" : "9px 20px", cursor: disabled ? "default" : "pointer",
+        opacity: disabled ? 0.6 : 1, display: "inline-flex", alignItems: "center", gap: 6 }}>
       {children}
     </motion.button>
   );
 }
 
-// ── Setup / Login ─────────────────────────────────────────────────────────────
+// ── Login ─────────────────────────────────────────────────────────────────────
 function AuthScreen({ onAuthed }: { onAuthed: () => void }) {
-  const hasRecord = !!getStoredPasswordRecord();
   const [pwd, setPwd] = useState("");
-  const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [lockoutMs, setLockoutMs] = useState(() => getLockoutRemainingMs());
-
-  useEffect(() => {
-    if (lockoutMs <= 0) return;
-    const t = setInterval(() => {
-      const remaining = getLockoutRemainingMs();
-      setLockoutMs(remaining);
-      if (remaining <= 0) clearInterval(t);
-    }, 500);
-    return () => clearInterval(t);
-  }, [lockoutMs > 0]);
 
   const submit = async () => {
-    if (getLockoutRemainingMs() > 0) return;
+    if (!pwd) return;
     setError(""); setLoading(true);
-    if (!hasRecord) {
-      if (pwd.length < 10) { setError("Password must be at least 10 characters."); setLoading(false); return; }
-      if (pwd !== confirm) { setError("Passwords do not match."); setLoading(false); return; }
-      storePasswordRecord(await createPasswordRecord(pwd));
-      clearAttempts();
-      setAuthed(true); onAuthed();
-    } else {
-      const ok = await verifyPassword(pwd, getStoredPasswordRecord()!);
-      if (ok) { clearAttempts(); setAuthed(true); onAuthed(); }
-      else {
-        recordFailedAttempt();
-        const remaining = getLockoutRemainingMs();
-        setLockoutMs(remaining);
-        setError(remaining > 0 ? `Too many attempts. Try again in ${Math.ceil(remaining / 1000)}s.` : "Incorrect password.");
-      }
+    try {
+      const res = await fetch("/api/cms/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: pwd }),
+      });
+      if (res.ok) { onAuthed(); return; }
+      const body = await readJsonSafe(res);
+      setError(body.error || "Incorrect password.");
+    } catch {
+      setError("Network error — please try again.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
-
-  const locked = lockoutMs > 0;
 
   return (
     <div style={{ minHeight: "100vh", background: C.headline, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
         style={{ background: C.white, borderRadius: 12, padding: "40px 36px", width: 360, boxShadow: "0 8px 40px rgba(0,0,0,0.2)" }}>
         <div style={{ fontFamily: T.display, fontSize: 26, fontWeight: 400, color: C.headline, marginBottom: 6 }}>
-          {hasRecord ? "Sign in" : "Set up CMS"}
+          Sign in
         </div>
         <div style={{ fontFamily: T.body, fontSize: 13, color: C.muted, marginBottom: 28 }}>
-          {hasRecord ? "Enter your admin password to continue." : "Create a password to secure the CMS. Min. 10 characters."}
+          Enter your admin password to continue.
         </div>
 
-        <Field label="Password" value={pwd} onChange={setPwd} placeholder="••••••••" />
-        {!hasRecord && <Field label="Confirm password" value={confirm} onChange={setConfirm} placeholder="••••••••" />}
+        <Field label="Password" value={pwd} onChange={setPwd} placeholder="••••••••" type="password" />
 
         <AnimatePresence>
           {error && (
@@ -136,15 +120,23 @@ function AuthScreen({ onAuthed }: { onAuthed: () => void }) {
           )}
         </AnimatePresence>
 
-        <button onClick={submit} disabled={loading || locked}
-          style={{ fontFamily: T.body, fontSize: 14, fontWeight: 600, color: C.white, background: C.brand, border: "none", borderRadius: 8, padding: "11px 0", width: "100%", cursor: loading || locked ? "default" : "pointer", opacity: loading || locked ? 0.6 : 1, transition: "opacity 0.15s" }}>
-          {locked ? `Locked (${Math.ceil(lockoutMs / 1000)}s)` : loading ? "Checking…" : hasRecord ? "Sign in" : "Create password"}
+        <button onClick={submit} disabled={loading} onKeyDown={(e) => e.key === "Enter" && submit()}
+          style={{ fontFamily: T.body, fontSize: 14, fontWeight: 600, color: C.white, background: C.brand, border: "none", borderRadius: 8, padding: "11px 0", width: "100%", cursor: loading ? "default" : "pointer", opacity: loading ? 0.7 : 1, transition: "opacity 0.15s" }}>
+          {loading ? "Checking…" : "Sign in"}
         </button>
 
         <div style={{ fontFamily: T.body, fontSize: 11, color: C.muted, marginTop: 20, lineHeight: 1.6 }}>
-          Password is hashed with salted PBKDF2 and stored only in this browser. It is never sent anywhere.
+          Checked on the server — the password never touches this browser's storage.
         </div>
       </motion.div>
+    </div>
+  );
+}
+
+function LoadingScreen() {
+  return (
+    <div style={{ minHeight: "100vh", background: C.headline, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <span style={{ fontFamily: T.body, fontSize: 13, color: "rgba(255,255,255,0.5)" }}>Loading…</span>
     </div>
   );
 }
@@ -380,65 +372,87 @@ function SocialTab({ data, onChange }: { data: CmsData; onChange: (d: CmsData) =
   );
 }
 
-// ── Change password ───────────────────────────────────────────────────────────
-function ChangePassword({ onDone }: { onDone: () => void }) {
-  const [curr, setCurr] = useState("");
-  const [next, setNext] = useState("");
-  const [conf, setConf] = useState("");
-  const [error, setError] = useState("");
-  const [ok, setOk] = useState(false);
-
-  const submit = async () => {
-    setError("");
-    const record = getStoredPasswordRecord();
-    const currOk = record ? await verifyPassword(curr, record) : false;
-    if (!currOk) { setError("Current password is incorrect."); return; }
-    if (next.length < 10) { setError("New password must be at least 10 characters."); return; }
-    if (next !== conf) { setError("Passwords do not match."); return; }
-    storePasswordRecord(await createPasswordRecord(next));
-    setOk(true);
-    setTimeout(onDone, 1200);
-  };
-
+// ── Change password (info panel — password now lives in a Vercel env var) ─────
+function ChangePasswordInfo({ onDone }: { onDone: () => void }) {
   return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-      style={{ maxWidth: 380 }}>
-      <div style={{ fontFamily: T.display, fontSize: 20, fontWeight: 400, color: C.headline, marginBottom: 20 }}>Change password</div>
-      <Field label="Current password" value={curr} onChange={setCurr} />
-      <Field label="New password" value={next} onChange={setNext} />
-      <Field label="Confirm new password" value={conf} onChange={setConf} />
-      {error && <div style={{ fontFamily: T.body, fontSize: 12, color: C.danger, marginBottom: 10 }}>{error}</div>}
-      {ok && <div style={{ fontFamily: T.body, fontSize: 12, color: "#2a8a3e", marginBottom: 10 }}>Password updated ✓</div>}
-      <div style={{ display: "flex", gap: 8 }}>
-        <Btn onClick={onDone} variant="ghost">Cancel</Btn>
-        <Btn onClick={submit}>Update password</Btn>
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} style={{ maxWidth: 460 }}>
+      <div style={{ fontFamily: T.display, fontSize: 20, fontWeight: 400, color: C.headline, marginBottom: 16 }}>Change password</div>
+      <div style={{ fontFamily: T.body, fontSize: 13, color: C.body, lineHeight: 1.8, marginBottom: 20 }}>
+        The admin password lives in a Vercel environment variable, not in this browser — so it's changed there, not here:
+        <ol style={{ margin: "12px 0 0", paddingLeft: 20 }}>
+          <li>On your computer, in the project folder, run <code>node scripts/hash-password.mjs</code> and follow the prompts.</li>
+          <li>Copy the printed value.</li>
+          <li>In Vercel → your project → Settings → Environment Variables, edit <code>CMS_PASSWORD_HASH</code> and paste the new value in.</li>
+          <li>Redeploy (Vercel → Deployments → ⋯ → Redeploy) for the change to take effect.</li>
+        </ol>
       </div>
+      <Btn onClick={onDone} variant="ghost">Back</Btn>
     </motion.div>
   );
 }
 
 // ── Main AdminPage ────────────────────────────────────────────────────────────
-export default function AdminPage({ defaultData, onDataChange }: {
-  defaultData: CmsData;
-  onDataChange: (d: CmsData) => void;
-}) {
-  const [authed, setAuthed_] = useState(isAuthed());
+export default function AdminPage() {
+  const [session, setSession] = useState<Session>("loading");
   const [tab, setTab] = useState<Tab>("projects");
-  const [data, setData] = useState<CmsData>(() => loadCms() ?? defaultData);
+  const [data, setData] = useState<CmsData>(siteData as CmsData);
+  const [dirty, setDirty] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState("");
+  const [justPublished, setJustPublished] = useState(false);
   const [changePwd, setChangePwd] = useState(false);
-  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/cms/session")
+      .then((r) => r.json())
+      .then((d) => setSession(d.authed ? "authed" : "anon"))
+      .catch(() => setSession("anon"));
+  }, []);
+
+  // Warn before leaving the tab with unpublished edits.
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
 
   const update = useCallback((d: CmsData) => {
     setData(d);
-    saveCms(d);
-    onDataChange(d);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1800);
-  }, [onDataChange]);
+    setDirty(true);
+    setJustPublished(false);
+  }, []);
 
-  useEffect(() => { if (authed) { const d = loadCms() ?? defaultData; setData(d); onDataChange(d); } }, [authed, defaultData, onDataChange]);
+  const publish = async () => {
+    setPublishing(true); setPublishError("");
+    try {
+      const res = await fetch("/api/cms/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const body = await readJsonSafe(res);
+        setPublishError(body.error || "Publish failed.");
+        return;
+      }
+      setDirty(false);
+      setJustPublished(true);
+      setTimeout(() => setJustPublished(false), 6000);
+    } catch {
+      setPublishError("Network error — please try again.");
+    } finally {
+      setPublishing(false);
+    }
+  };
 
-  if (!authed) return <AuthScreen onAuthed={() => { setAuthed_(true); }} />;
+  const signOut = async () => {
+    try { await fetch("/api/cms/logout", { method: "POST" }); } catch { /* ignore */ }
+    setSession("anon");
+  };
+
+  if (session === "loading") return <LoadingScreen />;
+  if (session === "anon") return <AuthScreen onAuthed={() => setSession("authed")} />;
 
   const TABS: { id: Tab; label: string }[] = [
     { id: "projects", label: "Projects" },
@@ -454,24 +468,39 @@ export default function AdminPage({ defaultData, onDataChange }: {
           <span style={{ fontFamily: T.display, fontSize: 18, color: C.white }}>CMS</span>
           <span style={{ fontFamily: T.body, fontSize: 11, color: "rgba(255,255,255,0.3)" }}>Tregtia</span>
           <AnimatePresence>
-            {saved && (
-              <motion.span initial={{ opacity: 0, x: -4 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}
-                style={{ fontFamily: T.body, fontSize: 11, color: "#5cc87a" }}>
-                ✓ Saved
-              </motion.span>
+            {dirty && !publishing && (
+              <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                style={{ fontFamily: T.body, fontSize: 11, color: "#e8b33e" }}>● Unpublished changes</motion.span>
+            )}
+            {publishing && (
+              <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                style={{ fontFamily: T.body, fontSize: 11, color: "rgba(255,255,255,0.5)" }}>Publishing…</motion.span>
+            )}
+            {justPublished && !dirty && (
+              <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                style={{ fontFamily: T.body, fontSize: 11, color: "#5cc87a" }}>✓ Published — live in about a minute</motion.span>
             )}
           </AnimatePresence>
         </div>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <Btn onClick={publish} small disabled={!dirty || publishing}>
+            {publishing ? "Publishing…" : "Publish changes"}
+          </Btn>
           <button onClick={() => window.location.hash = ""} style={{ fontFamily: T.body, fontSize: 12, color: "rgba(255,255,255,0.45)", background: "none", border: "none", cursor: "pointer" }}>← Back to site</button>
           <button onClick={() => setChangePwd(true)} style={{ fontFamily: T.body, fontSize: 12, color: "rgba(255,255,255,0.45)", background: "none", border: "none", cursor: "pointer" }}>Change password</button>
-          <button onClick={() => { setAuthed(false); setAuthed_(false); }} style={{ fontFamily: T.body, fontSize: 12, color: "rgba(255,255,255,0.45)", background: "none", border: "none", cursor: "pointer" }}>Sign out</button>
+          <button onClick={signOut} style={{ fontFamily: T.body, fontSize: 12, color: "rgba(255,255,255,0.45)", background: "none", border: "none", cursor: "pointer" }}>Sign out</button>
         </div>
       </div>
 
+      {publishError && (
+        <div style={{ background: "#fdecec", borderBottom: `1px solid ${C.danger}`, padding: "10px 40px", fontFamily: T.body, fontSize: 12, color: C.danger }}>
+          {publishError}
+        </div>
+      )}
+
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "40px 40px 80px" }}>
         {changePwd
-          ? <ChangePassword onDone={() => setChangePwd(false)} />
+          ? <ChangePasswordInfo onDone={() => setChangePwd(false)} />
           : (
             <>
               {/* Tabs */}

@@ -19,7 +19,12 @@ There is no separate typecheck script; run `npx tsc --noEmit` before shipping ch
 
 - `src/main.tsx` — React entrypoint; imports `src/index.css` and mounts `src/App.tsx` into `#root`.
 - `src/App.tsx` — the public site: nav, hero, about, services, projects, contact, footer.
-- `src/cms/` — the admin panel (`AdminPage.tsx`) and its persistence layer (`storage.ts`).
+- `src/content/site-data.json` — the single source of truth for CMS-editable content (projects,
+  hero images, social links). Both `App.tsx` and `AdminPage.tsx` import it directly.
+- `src/cms/` — the admin panel (`AdminPage.tsx`) and shared client-side helpers (`storage.ts`).
+- `api/cms/` — Vercel serverless functions: `login.ts`, `logout.ts`, `session.ts`, `save.ts`.
+- `api/_lib/` — server-only helpers shared by the functions above (`session.ts`, `password.ts`).
+- `scripts/hash-password.mjs` — run locally to generate the `CMS_PASSWORD_HASH` env var value.
 - `src/ThreeCanvas.tsx` — pure Three.js scene setup (no React), consumed via `useEffect` hooks.
 - `src/assets/` — static images bundled into the app (currently just the logo).
 - `src/index.css` — Tailwind v4 entrypoint, theme tokens, global styles, keyframes.
@@ -36,11 +41,22 @@ the existing convention within a file rather than mixing approaches inside the s
 ## The admin panel (`#admin`)
 
 Visiting `/#admin` opens a password-gated editor for projects, hero images, and social links.
-**Important limitation:** this CMS has no backend. All content and the password hash are stored in
-the browser's `localStorage`/`sessionStorage` (see `src/cms/storage.ts`). Edits only apply to the
-browser that made them — they are not synced to other visitors or devices. Treat it as a local
-content-staging tool, not a production content pipeline. If real multi-device/shared editing is
-needed, that requires an actual backend (API + database) and is a separate project.
+
+**Architecture: GitHub as the database, no separate DB.** Editable content lives in
+`src/content/site-data.json`, imported directly by `App.tsx` and `AdminPage.tsx`. There is no
+runtime data store — clicking "Publish changes" in the admin panel POSTs the edited JSON to
+`/api/cms/save` (a Vercel serverless function), which commits the updated file straight to this
+GitHub repo via the GitHub Contents API. That push triggers Vercel's normal auto-deploy, so the
+live site picks up the change on the next build (usually under a minute). Every publish is a real
+git commit, so version history/rollback comes for free via `git log` / GitHub.
+
+Auth is also server-side: `/api/cms/login` checks the submitted password against
+`CMS_PASSWORD_HASH` (a salted PBKDF2 record — see `scripts/hash-password.mjs`) and, on success,
+sets a signed, httpOnly session cookie (`api/_lib/session.ts`, using `CMS_SESSION_SECRET`). Nothing
+sensitive is ever stored in the browser.
+
+Required environment variables (set in Vercel → Settings → Environment Variables, see
+`.env.example`): `CMS_PASSWORD_HASH`, `CMS_SESSION_SECRET`, `GITHUB_TOKEN`, `GITHUB_REPO`.
 
 ## Code quality
 
