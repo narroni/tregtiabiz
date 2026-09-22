@@ -133,6 +133,19 @@
       "alt": "Apollonia A21",
       "desc": "Five-building residential complex in Fushë Kosovë. Approximately 170 apartments with ground-floor commercial spaces, basement parking, an interior courtyard with open parking, and green areas throughout.",
       "specs": "5 buildings · B+P+7 · ~170 units · Basement parking · Green areas"
+    },
+    {
+      "id": "testt",
+      "name": "testt",
+      "neighborhood": "test",
+      "location": "test",
+      "investor": "Tregtia Sh.p.k",
+      "use": "Residential",
+      "img": "",
+      "images": [],
+      "alt": "testt",
+      "desc": "test",
+      "specs": ""
     }
   ],
   "heroImages": [
