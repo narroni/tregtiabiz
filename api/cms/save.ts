@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { isValidSession } from "../_lib/session";
+import { isValidSession } from "../_lib/session.js";
 
 const FILE_PATH = "src/content/site-data.json";
 

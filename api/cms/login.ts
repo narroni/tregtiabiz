@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { verifyPassword } from "../_lib/password";
-import { createSessionCookie } from "../_lib/session";
+import { verifyPassword } from "../_lib/password.js";
+import { createSessionCookie } from "../_lib/session.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
