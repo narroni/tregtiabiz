@@ -67,9 +67,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: "Not authenticated." });
   }
 
-  const token = process.env.GITHUB_TOKEN;
-  const repo = process.env.GITHUB_REPO; // "owner/repo"
-  const branch = process.env.GITHUB_BRANCH || "main";
+  // Trim defensively — a trailing newline/space picked up when pasting into
+  // the Vercel dashboard silently breaks the GitHub API request otherwise.
+  const token = process.env.GITHUB_TOKEN?.trim();
+  const repo = process.env.GITHUB_REPO?.trim().replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$/i, ""); // "owner/repo"
+  const branch = process.env.GITHUB_BRANCH?.trim() || "main";
   if (!token || !repo) {
     return res.status(500).json({ error: "GitHub is not configured. Set GITHUB_TOKEN and GITHUB_REPO." });
   }
@@ -88,7 +90,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const getRes = await fetch(`${apiUrl}?ref=${encodeURIComponent(branch)}`, { headers });
     if (!getRes.ok) {
-      return res.status(502).json({ error: "Could not read current content from GitHub.", detail: await getRes.text() });
+      return res.status(502).json({ error: "Could not read current content from GitHub.", detail: await describeGithubError(getRes) });
     }
     const current = (await getRes.json()) as { sha: string };
 
@@ -106,11 +108,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     if (!putRes.ok) {
-      return res.status(502).json({ error: "GitHub update failed.", detail: await putRes.text() });
+      return res.status(502).json({ error: "GitHub update failed.", detail: await describeGithubError(putRes) });
     }
 
     return res.status(200).json({ ok: true });
   } catch (err) {
     return res.status(502).json({ error: "Unexpected error talking to GitHub.", detail: String(err) });
+  }
+}
+
+async function describeGithubError(res: Response): Promise<string> {
+  const status = `HTTP ${res.status}`;
+  const text = await res.text();
+  try {
+    const body = JSON.parse(text) as { message?: string };
+    return body.message ? `${status}: ${body.message}` : `${status}: ${text}`;
+  } catch {
+    return `${status}: ${text}`;
   }
 }
