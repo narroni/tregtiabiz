@@ -26,7 +26,7 @@ function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
 
-async function readJsonSafe(res: Response): Promise<{ error?: string }> {
+async function readJsonSafe(res: Response): Promise<{ error?: string; detail?: string }> {
   try { return await res.json(); } catch { return {}; }
 }
 
@@ -433,7 +433,9 @@ export default function AdminPage() {
       });
       if (!res.ok) {
         const body = await readJsonSafe(res);
-        setPublishError(body.error || "Publish failed.");
+        const base = body.error || "Publish failed.";
+        const detail = body.detail ? String(body.detail).slice(0, 400) : "";
+        setPublishError(detail ? `${base} — ${detail}` : base);
         return;
       }
       setDirty(false);
