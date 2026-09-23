@@ -152,7 +152,7 @@ function Nav({
   lang: Lang;
   onLangChange: (l: Lang) => void;
   currentPage: Page;
-  onGoHome: () => void;
+  onGoHome: (scrollToId?: string) => void;
 }) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -172,9 +172,9 @@ function Nav({
   const handleLink = (id: string) => {
     setMenuOpen(false);
     if (currentPage.type !== "home") {
-      // Go home first, then scroll after a small delay for DOM render
-      onGoHome();
-      setTimeout(() => scrollToSection(id), 80);
+      // onGoHome defers the actual scroll until the home page has finished
+      // mounting (see App's onExitComplete) rather than guessing a delay.
+      onGoHome(id);
     } else {
       scrollToSection(id);
     }
@@ -979,14 +979,29 @@ export default function App() {
   const activeHeroImages = HERO_IMAGES;
   const activeSocial = DEFAULT_SOCIAL;
 
-  const goHome = useCallback(() => {
+  // Where to scroll once we're back on the home page. Navigating away from
+  // ProjectPage triggers an exit animation (AnimatePresence mode="wait"), so
+  // the home content isn't actually in the DOM yet when navigateHome is
+  // called — a fixed setTimeout delay was racing that animation and usually
+  // losing, landing back at the top instead of the target section.
+  // onExitComplete (below) fires once that animation actually finishes.
+  const [pendingScroll, setPendingScroll] = useState<string | "top" | null>(null);
+
+  const navigateHome = useCallback((scrollToId?: string) => {
     setPage({ type: "home" });
-    setTimeout(() => scrollToTop(), 10);
+    setPendingScroll(scrollToId ?? "top");
   }, []);
 
-  const goHomeAndScroll = useCallback((id: string) => {
-    setPage({ type: "home" });
-    setTimeout(() => scrollToSection(id), 80);
+  const runPendingScroll = useCallback(() => {
+    setPendingScroll((target) => {
+      if (!target) return null;
+      // Wait a couple of frames so the newly-mounted home content has
+      // actually been painted before we measure/scroll to it.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (target === "top") scrollToTop(); else scrollToSection(target);
+      }));
+      return null;
+    });
   }, []);
 
   if (isAdmin) {
@@ -999,9 +1014,9 @@ export default function App() {
         lang={lang}
         onLangChange={setLang}
         currentPage={page}
-        onGoHome={goHome}
+        onGoHome={navigateHome}
       />
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="wait" onExitComplete={runPendingScroll}>
         {page.type === "home" ? (
           <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}>
             <Hero lang={lang} heroImages={activeHeroImages} />
@@ -1017,7 +1032,7 @@ export default function App() {
             projectId={(page as { type: "project"; id: string }).id}
             projects={activeProjects}
             lang={lang}
-            onBack={() => goHomeAndScroll("projects")}
+            onBack={() => navigateHome("projects")}
           />
         )}
       </AnimatePresence>
