@@ -32,7 +32,7 @@ There is no separate typecheck script; run `npx tsc --noEmit` before shipping ch
 - `scripts/verify-password.mjs` — local diagnostic: checks a password against a record without deploying.
 - `src/icons.tsx` — brand-mark icons (Instagram, Facebook) that generic sets like lucide deliberately
   omit; everything else icon-shaped uses `lucide-react` directly.
-- `src/ThreeCanvas.tsx` — pure Three.js scene setup (no React), consumed via `useEffect` hooks.
+- `src/hooks.ts` — shared hooks (`useMediaQuery`) used by both `App.tsx` and `AdminPage.tsx`.
 - `src/assets/` — static images bundled into the app (currently just the logo).
 - `src/index.css` — Tailwind v4 entrypoint, theme tokens, global styles, keyframes.
 - `index.html` — Vite HTML shell; also carries meta tags and the CSP.
@@ -79,9 +79,30 @@ falls back to showing everything (see `Projects` in `App.tsx`).
 
 The site uses inline `style={{}}` objects, not CSS classes, so there are no `@media` breakpoints —
 structural layout changes (row → column, nav → hamburger menu, grid column counts) go through the
-`useMediaQuery` hook in `App.tsx` (breakpoint: `max-width: 860px`), used per-component rather than
-globally. Follow that pattern for any new layout that needs to change at a breakpoint; fluid sizing
-(font sizes, gaps, padding) should keep using `clamp()`/`minmax()` instead where possible.
+`useMediaQuery` hook in `src/hooks.ts` (public site breakpoint: `max-width: 860px`; the admin panel
+uses `max-width: 700px`), used per-component rather than globally. Follow that pattern for any new
+layout that needs to change at a breakpoint; fluid sizing (font sizes, gaps, padding) should keep
+using `clamp()`/`minmax()` instead where possible.
+
+## Routing
+
+There's no router library — `App.tsx` reads `window.location.hash` directly (`parseRoute()`/
+`projectHash()`). Home is no hash (or any unrecognized one), a project is `#/projects/<id>`, and the
+admin panel is `#admin`. Navigating calls `window.location.hash = ...` rather than only touching
+React state, so a project page is a real, bookmarkable/shareable URL and the browser's own
+back/forward buttons work — a `hashchange` listener syncs `page` state to match. Scrolling to an
+in-page section after a route change (e.g. the project page's "All projects" back button landing on
+`#projects`) is handled separately via `pendingScroll` + `AnimatePresence`'s `onExitComplete`, since
+that's a scroll position, not a route.
+
+## Accessibility
+
+Most interactive elements set their hover state via inline `onMouseEnter`/`onMouseLeave` handlers
+rather than CSS, which by itself gives keyboard users no focus feedback — `index.css` adds one global
+`:focus-visible` outline rule to cover every button/link/input/select/textarea instead of wiring
+focus handlers individually. Toggle-style controls (language switcher, neighborhood filter pills, CMS
+tabs) set `aria-pressed`. CMS `<label>`s are linked to their input via `useId()` (see `Field` and
+`NeighborhoodField` in `AdminPage.tsx`) rather than relying on visual proximity alone.
 
 ## Code quality
 

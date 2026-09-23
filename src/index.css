@@ -34,6 +34,20 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Most interactive elements in this codebase only get a visual state on
+   hover (via inline JS handlers), so keyboard users tabbing through the
+   site otherwise see no focus feedback at all. This applies one consistent
+   focus ring everywhere without touching every component. */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 @keyframes heroZoom {
   from { transform: scale(1.08); }
   to   { transform: scale(1); }

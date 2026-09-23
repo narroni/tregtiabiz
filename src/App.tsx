@@ -3,17 +3,11 @@ import type React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import tregtiaLogo from "@/assets/tregtia-logo.png";
-import { initParticleField } from "./ThreeCanvas";
 import AdminPage from "./cms/AdminPage";
 import { isSafeHttpUrl } from "./cms/storage";
 import siteData from "./content/site-data.json";
 import { InstagramIcon, FacebookIcon } from "./icons";
-
-function ParticleField() {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => { if (ref.current) return initParticleField(ref.current); }, []);
-  return <div ref={ref} style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 1 }} />;
-}
+import { useMediaQuery } from "./hooks";
 
 
 // ── Palette ───────────────────────────────────────────────────────────────────
@@ -35,7 +29,7 @@ const T = {
 } as const;
 
 type Lang = "en" | "sq";
-type Page = { type: "home" } | { type: "project"; id: string };
+type Page = { type: "home" } | { type: "project"; id: string } | { type: "admin" };
 
 type Localized = { en: string; sq: string };
 type Project = {
@@ -98,6 +92,27 @@ function scrollToTop() {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+// ── Routing ───────────────────────────────────────────────────────────────────
+// Real hash-based URLs (#/projects/<id>, #admin) instead of purely in-memory
+// state. This means a project can be bookmarked/shared/reloaded directly, and
+// the browser's own back/forward buttons work — each navigation is a real
+// history entry, not something we have to fake with component state.
+const PROJECT_HASH_PREFIX = "#/projects/";
+
+function parseRoute(): Page {
+  const hash = window.location.hash;
+  if (hash === "#admin") return { type: "admin" };
+  if (hash.startsWith(PROJECT_HASH_PREFIX)) {
+    const id = decodeURIComponent(hash.slice(PROJECT_HASH_PREFIX.length));
+    if (id) return { type: "project", id };
+  }
+  return { type: "home" };
+}
+
+function projectHash(id: string): string {
+  return `${PROJECT_HASH_PREFIX}${encodeURIComponent(id)}`;
+}
+
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 function useIntersection(threshold = 0.15) {
   const ref = useRef<HTMLDivElement>(null);
@@ -113,22 +128,6 @@ function useIntersection(threshold = 0.15) {
     return () => obs.disconnect();
   }, [threshold]);
   return { ref, visible };
-}
-
-/** Tracks a CSS media query so layouts can switch at real breakpoints —
- *  needed because this codebase styles with inline `style={{}}` objects
- *  rather than CSS classes, so there's no other way to express "only below
- *  this width" for structural changes (row → column, hidden nav, etc). */
-function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
-  useEffect(() => {
-    const mql = window.matchMedia(query);
-    const handler = () => setMatches(mql.matches);
-    handler();
-    mql.addEventListener("change", handler);
-    return () => mql.removeEventListener("change", handler);
-  }, [query]);
-  return matches;
 }
 
 // ── Logo ──────────────────────────────────────────────────────────────────────
@@ -196,6 +195,8 @@ function Nav({
         <button
           key={l}
           onClick={() => onLangChange(l)}
+          aria-pressed={lang === l}
+          aria-label={l === "en" ? "English" : "Shqip"}
           style={{ fontFamily: T.body, fontSize: 11, fontWeight: 600, background: lang === l ? C.brand : "transparent", color: lang === l ? C.white : C.body, border: "none", padding: "5px 10px", cursor: "pointer", transition: "background 0.15s, color 0.15s", textTransform: "uppercase" }}
         >
           {l.toUpperCase()}
@@ -702,6 +703,7 @@ function Projects({ lang, projects, onSelectProject }: { lang: Lang; projects: P
               return (
                 <motion.button
                   key={key} onClick={() => setFilterKey(key)}
+                  aria-pressed={active}
                   whileTap={{ scale: 0.95 }}
                   style={{ fontFamily: T.body, fontSize: 11, fontWeight: active ? 600 : 400, color: active ? C.white : C.body, background: active ? C.brand : "rgba(11,18,32,0.05)", border: "none", padding: "5px 12px", cursor: "pointer", borderRadius: 20, transition: "background 0.18s, color 0.18s" }}
                 >
@@ -773,7 +775,7 @@ function ProjectPage({ projectId, lang, projects, onBack }: { projectId: string;
   const project = projects.find((p) => p.id === projectId);
   const [activeImg, setActiveImg] = useState(0);
   const isMobile = useMediaQuery("(max-width: 860px)");
-  useEffect(() => { window.scrollTo(0, 0); }, []);
+  useEffect(() => { window.scrollTo(0, 0); }, [projectId]);
   if (!project) return null;
 
   const specs = [
@@ -830,7 +832,9 @@ function ProjectPage({ projectId, lang, projects, onBack }: { projectId: string;
       {project.images.length > 1 && (
         <div style={{ background: C.white, borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: C.divider, padding: "12px clamp(20px,5vw,40px)", display: "flex", gap: 8, overflowX: "auto" }}>
           {project.images.map((src, i) => (
-            <button key={i} onClick={() => setActiveImg(i)} style={{ flexShrink: 0, width: 80, height: 56, borderRadius: 6, overflow: "hidden", borderWidth: 2, borderStyle: "solid", borderColor: i === activeImg ? C.brand : "transparent", padding: 0, cursor: "pointer", transition: "border-color 0.15s" }}>
+            <button key={i} onClick={() => setActiveImg(i)} aria-pressed={i === activeImg}
+              aria-label={`${tl("Photo", "Foto")} ${i + 1} ${tl("of", "nga")} ${project.images.length}`}
+              style={{ flexShrink: 0, width: 80, height: 56, borderRadius: 6, overflow: "hidden", borderWidth: 2, borderStyle: "solid", borderColor: i === activeImg ? C.brand : "transparent", padding: 0, cursor: "pointer", transition: "border-color 0.15s" }}>
               <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", filter: i === activeImg ? "none" : "saturate(0.5) brightness(0.85)" }} />
             </button>
           ))}
@@ -962,12 +966,14 @@ function Footer({ lang, social }: { lang: Lang; social: { instagram: string; fac
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
   const [lang, setLang] = useState<Lang>("en");
-  const [page, setPage] = useState<Page>({ type: "home" });
-  const [isAdmin, setIsAdmin] = useState(window.location.hash === "#admin");
+  const [page, setPage] = useState<Page>(() => parseRoute());
 
-  // Listen for hash changes to enter/exit admin
+  // The URL hash is the source of truth for navigation (see parseRoute/
+  // projectHash above) — this just mirrors it into state on change, so
+  // browser back/forward and direct/shared links to a project work like a
+  // real page, not something faked with in-memory state.
   useEffect(() => {
-    const onHash = () => setIsAdmin(window.location.hash === "#admin");
+    const onHash = () => setPage(parseRoute());
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
@@ -979,6 +985,12 @@ export default function App() {
   const activeHeroImages = HERO_IMAGES;
   const activeSocial = DEFAULT_SOCIAL;
 
+  // A stale/mistyped project link shouldn't render a blank page.
+  const resolvedPage: Page =
+    page.type === "project" && !activeProjects.some((p) => p.id === page.id)
+      ? { type: "home" }
+      : page;
+
   // Where to scroll once we're back on the home page. Navigating away from
   // ProjectPage triggers an exit animation (AnimatePresence mode="wait"), so
   // the home content isn't actually in the DOM yet when navigateHome is
@@ -988,8 +1000,12 @@ export default function App() {
   const [pendingScroll, setPendingScroll] = useState<string | "top" | null>(null);
 
   const navigateHome = useCallback((scrollToId?: string) => {
-    setPage({ type: "home" });
+    window.location.hash = "";
     setPendingScroll(scrollToId ?? "top");
+  }, []);
+
+  const navigateToProject = useCallback((id: string) => {
+    window.location.hash = projectHash(id);
   }, []);
 
   const runPendingScroll = useCallback(() => {
@@ -1004,7 +1020,7 @@ export default function App() {
     });
   }, []);
 
-  if (isAdmin) {
+  if (resolvedPage.type === "admin") {
     return <AdminPage />;
   }
 
@@ -1013,23 +1029,23 @@ export default function App() {
       <Nav
         lang={lang}
         onLangChange={setLang}
-        currentPage={page}
+        currentPage={resolvedPage}
         onGoHome={navigateHome}
       />
       <AnimatePresence mode="wait" onExitComplete={runPendingScroll}>
-        {page.type === "home" ? (
+        {resolvedPage.type === "home" ? (
           <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}>
             <Hero lang={lang} heroImages={activeHeroImages} />
             <About lang={lang} />
             <Services lang={lang} />
-            <Projects lang={lang} projects={activeProjects} onSelectProject={(id) => { setPage({ type: "project", id }); window.scrollTo(0, 0); }} />
+            <Projects lang={lang} projects={activeProjects} onSelectProject={navigateToProject} />
             <Contact lang={lang} />
             <Footer lang={lang} social={activeSocial} />
           </motion.div>
         ) : (
           <ProjectPage
             key="project"
-            projectId={(page as { type: "project"; id: string }).id}
+            projectId={resolvedPage.id}
             projects={activeProjects}
             lang={lang}
             onBack={() => navigateHome("projects")}

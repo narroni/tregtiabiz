@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useId } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, Upload } from "lucide-react";
 import { InstagramIcon, FacebookIcon } from "../icons";
 import { isSafeHttpUrl, type CmsData, type CmsProject } from "./storage";
 import { resizeImageToJpegBase64 } from "./resizeImage";
+import { useMediaQuery } from "../hooks";
 import siteData from "../content/site-data.json";
 
 // ── Palette (mirrors App.tsx) ─────────────────────────────────────────────────
@@ -39,6 +40,7 @@ function Field({ label, value, onChange, multiline = false, placeholder = "", ty
   label: string; value: string; onChange: (v: string) => void;
   multiline?: boolean; placeholder?: string; type?: string;
 }) {
+  const id = useId();
   const shared: React.CSSProperties = {
     fontFamily: T.body, fontSize: 13, color: C.headline, background: C.white,
     borderWidth: 1, borderStyle: "solid", borderColor: C.divider, borderRadius: 6,
@@ -47,13 +49,13 @@ function Field({ label, value, onChange, multiline = false, placeholder = "", ty
   };
   return (
     <div style={{ marginBottom: 14 }}>
-      <label style={{ fontFamily: T.body, fontSize: 11, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 5 }}>{label}</label>
+      <label htmlFor={id} style={{ fontFamily: T.body, fontSize: 11, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 5 }}>{label}</label>
       {multiline
-        ? <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={3}
+        ? <textarea id={id} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={3}
             style={{ ...shared, resize: "vertical" }}
             onFocus={(e) => (e.currentTarget.style.borderColor = C.brand)}
             onBlur={(e) => (e.currentTarget.style.borderColor = C.divider)} />
-        : <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+        : <input id={id} type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
             style={shared}
             onFocus={(e) => (e.currentTarget.style.borderColor = C.brand)}
             onBlur={(e) => (e.currentTarget.style.borderColor = C.divider)} />
@@ -190,15 +192,16 @@ function LoadingScreen() {
 // ── Neighborhood picker — reuse an existing one (keeps the homepage filter
 // pills tidy) or add a new one, which becomes its own filter automatically. ──
 function NeighborhoodField({ value, existing, onChange }: { value: string; existing: string[]; onChange: (v: string) => void }) {
+  const id = useId();
   const [addingNew, setAddingNew] = useState(!value || !existing.includes(value));
 
   if (addingNew) {
     return (
       <div style={{ marginBottom: 14 }}>
-        <label style={{ fontFamily: T.body, fontSize: 11, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 5 }}>
+        <label htmlFor={id} style={{ fontFamily: T.body, fontSize: 11, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 5 }}>
           Neighborhood {existing.length > 0 ? "(new)" : ""}
         </label>
-        <input value={value} onChange={(e) => onChange(e.target.value)} placeholder="e.g. Kodrina"
+        <input id={id} value={value} onChange={(e) => onChange(e.target.value)} placeholder="e.g. Kodrina"
           style={{ fontFamily: T.body, fontSize: 13, color: C.headline, background: C.white, borderWidth: 1, borderStyle: "solid", borderColor: C.divider, borderRadius: 6, padding: "8px 12px", width: "100%", outline: "none", boxSizing: "border-box" }} />
         {existing.length > 0 && (
           <button type="button" onClick={() => setAddingNew(false)}
@@ -212,8 +215,9 @@ function NeighborhoodField({ value, existing, onChange }: { value: string; exist
 
   return (
     <div style={{ marginBottom: 14 }}>
-      <label style={{ fontFamily: T.body, fontSize: 11, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 5 }}>Neighborhood</label>
+      <label htmlFor={id} style={{ fontFamily: T.body, fontSize: 11, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 5 }}>Neighborhood</label>
       <select
+        id={id}
         value={value}
         onChange={(e) => { if (e.target.value === "__new__") setAddingNew(true); else onChange(e.target.value); }}
         style={{ fontFamily: T.body, fontSize: 13, color: C.headline, background: C.white, borderWidth: 1, borderStyle: "solid", borderColor: C.divider, borderRadius: 6, padding: "8px 12px", width: "100%", outline: "none", boxSizing: "border-box" }}
@@ -229,6 +233,7 @@ function NeighborhoodField({ value, existing, onChange }: { value: string; exist
 function ProjectEditor({ initial, existingNeighborhoods, onSave, onClose }: {
   initial: CmsProject; existingNeighborhoods: string[]; onSave: (p: CmsProject) => void; onClose: () => void;
 }) {
+  const isMobile = useMediaQuery("(max-width: 700px)");
   const [p, setP] = useState<CmsProject>(initial);
   const [imgInput, setImgInput] = useState("");
   const [imgError, setImgError] = useState("");
@@ -266,16 +271,16 @@ function ProjectEditor({ initial, existingNeighborhoods, onSave, onClose }: {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", overflowY: "auto" }}
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: isMobile ? "16px 8px" : "40px 20px", overflowY: "auto" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}>
       <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}
-        style={{ background: C.white, borderRadius: 10, padding: 32, width: "100%", maxWidth: 640 }}>
+        style={{ background: C.white, borderRadius: 10, padding: isMobile ? 18 : 32, width: "100%", maxWidth: 640 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
           <div style={{ fontFamily: T.display, fontSize: 22, fontWeight: 400, color: C.headline }}>{p.id ? "Edit project" : "New project"}</div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, fontSize: 20, lineHeight: 1 }}>×</button>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "0 16px" }}>
           <NeighborhoodField value={p.neighborhood} existing={existingNeighborhoods} onChange={(v) => upd("neighborhood", v)} />
           <Field label="Location" value={p.location} onChange={(v) => upd("location", v)} />
           <Field label="Investor" value={p.investor} onChange={(v) => upd("investor", v)} />
@@ -294,14 +299,14 @@ function ProjectEditor({ initial, existingNeighborhoods, onSave, onClose }: {
         {/* Language tabs for translatable fields */}
         <div style={{ display: "flex", gap: 2, marginBottom: 16, borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: C.divider }}>
           {(["en", "sq"] as const).map((l) => (
-            <button key={l} onClick={() => setFormLang(l)}
+            <button key={l} onClick={() => setFormLang(l)} aria-pressed={formLang === l}
               style={{ fontFamily: T.body, fontSize: 12, fontWeight: formLang === l ? 600 : 400, color: formLang === l ? C.brand : C.muted, background: "none", border: "none", cursor: "pointer", padding: "8px 14px", borderBottomWidth: 2, borderBottomStyle: "solid", borderBottomColor: formLang === l ? C.brand : "transparent", marginBottom: -1 }}>
               {l === "en" ? "English" : "Shqip"}
             </button>
           ))}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "0 16px" }}>
           <Field label={`Project name * (${formLang.toUpperCase()})`} value={p.name[formLang]} onChange={(v) => updLoc("name", v)} />
           <Field label={`Specs (${formLang.toUpperCase()})`} value={p.specs[formLang]} onChange={(v) => updLoc("specs", v)} placeholder="e.g. B+P+4 · 25 units" />
         </div>
@@ -311,11 +316,11 @@ function ProjectEditor({ initial, existingNeighborhoods, onSave, onClose }: {
         {/* Images */}
         <div style={{ marginBottom: 14 }}>
           <label style={{ fontFamily: T.body, fontSize: 11, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 8 }}>Images</label>
-          <div style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "flex-start" }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "flex-start", flexWrap: "wrap" }}>
             <input value={imgInput} onChange={(e) => setImgInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addImage()}
               placeholder="Paste image URL and press Enter"
-              style={{ fontFamily: T.body, fontSize: 13, flex: 1, borderWidth: 1, borderStyle: "solid", borderColor: C.divider, borderRadius: 6, padding: "8px 12px", outline: "none" }} />
+              style={{ fontFamily: T.body, fontSize: 13, flex: "1 1 180px", minWidth: 0, borderWidth: 1, borderStyle: "solid", borderColor: C.divider, borderRadius: 6, padding: "8px 12px", outline: "none" }} />
             <Btn onClick={addImage} small>Add</Btn>
             <UploadButton small onUploaded={(url) => setP((prev) => ({ ...prev, images: [...prev.images, url], img: prev.img || url }))} />
           </div>
@@ -441,11 +446,11 @@ function HeroTab({ data, onChange }: { data: CmsData; onChange: (d: CmsData) => 
       <div style={{ fontFamily: T.body, fontSize: 13, color: C.muted, marginBottom: 20 }}>
         These images rotate as the hero slideshow on the home page. First image shows first.
       </div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         <input value={input} onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && add()}
           placeholder="Paste image URL and press Enter"
-          style={{ fontFamily: T.body, fontSize: 13, flex: 1, borderWidth: 1, borderStyle: "solid", borderColor: C.divider, borderRadius: 6, padding: "9px 12px", outline: "none" }} />
+          style={{ fontFamily: T.body, fontSize: 13, flex: "1 1 180px", minWidth: 0, borderWidth: 1, borderStyle: "solid", borderColor: C.divider, borderRadius: 6, padding: "9px 12px", outline: "none" }} />
         <Btn onClick={add}>Add image</Btn>
         <UploadButton onUploaded={(url) => onChange({ ...data, heroImages: [...data.heroImages, url] })} />
       </div>
@@ -515,6 +520,7 @@ function ChangePasswordInfo({ onDone }: { onDone: () => void }) {
 
 // ── Main AdminPage ────────────────────────────────────────────────────────────
 export default function AdminPage() {
+  const isMobile = useMediaQuery("(max-width: 700px)");
   const [session, setSession] = useState<Session>("loading");
   const [tab, setTab] = useState<Tab>("projects");
   const [data, setData] = useState<CmsData>(siteData as CmsData);
@@ -587,8 +593,8 @@ export default function AdminPage() {
   return (
     <div style={{ minHeight: "100vh", background: C.bg }}>
       {/* Top bar */}
-      <div style={{ background: C.headline, padding: "0 40px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 56, position: "sticky", top: 0, zIndex: 50 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+      <div style={{ background: C.headline, padding: "10px clamp(16px,4vw,40px)", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "8px 16px", minHeight: 56, position: "sticky", top: 0, zIndex: 50 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16 }}>
           <span style={{ fontFamily: T.display, fontSize: 18, color: C.white }}>CMS</span>
           <span style={{ fontFamily: T.body, fontSize: 11, color: "rgba(255,255,255,0.3)" }}>Tregtia</span>
           <AnimatePresence>
@@ -608,7 +614,7 @@ export default function AdminPage() {
             )}
           </AnimatePresence>
         </div>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 12px", alignItems: "center" }}>
           <Btn onClick={publish} small disabled={!dirty || publishing}>
             {publishing ? "Publishing…" : "Publish changes"}
           </Btn>
@@ -619,12 +625,12 @@ export default function AdminPage() {
       </div>
 
       {publishError && (
-        <div style={{ background: "#fdecec", borderBottom: `1px solid ${C.danger}`, padding: "10px 40px", fontFamily: T.body, fontSize: 12, color: C.danger }}>
+        <div style={{ background: "#fdecec", borderBottom: `1px solid ${C.danger}`, padding: "10px clamp(16px,4vw,40px)", fontFamily: T.body, fontSize: 12, color: C.danger }}>
           {publishError}
         </div>
       )}
 
-      <div style={{ maxWidth: 900, margin: "0 auto", padding: "40px 40px 80px" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: isMobile ? "20px 16px 60px" : "40px 40px 80px" }}>
         {changePwd
           ? <ChangePasswordInfo onDone={() => setChangePwd(false)} />
           : (
@@ -632,7 +638,7 @@ export default function AdminPage() {
               {/* Tabs */}
               <div style={{ display: "flex", gap: 2, marginBottom: 32, borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: C.divider }}>
                 {TABS.map((t) => (
-                  <button key={t.id} onClick={() => setTab(t.id)}
+                  <button key={t.id} onClick={() => setTab(t.id)} aria-pressed={tab === t.id}
                     style={{ fontFamily: T.body, fontSize: 13, fontWeight: tab === t.id ? 600 : 400, color: tab === t.id ? C.brand : C.muted, background: "none", border: "none", cursor: "pointer", padding: "10px 18px", borderBottomWidth: 2, borderBottomStyle: "solid", borderBottomColor: tab === t.id ? C.brand : "transparent", marginBottom: -1, transition: "color 0.15s, border-color 0.15s" }}>
                     {t.label}
                   </button>
