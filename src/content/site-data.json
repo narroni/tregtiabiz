@@ -2,7 +2,7 @@
   "projects": [
     {
       "id": "kodrina-apollonia",
-      "name": "Kodrina — Apollonia",
+      "featured": false,
       "neighborhood": "Kodrina",
       "location": "Prishtinë",
       "investor": "Tregtia Sh.p.k",
@@ -14,13 +14,20 @@
         "https://tregtia.biz/wp-content/uploads/2020/09/1-scaled.jpg",
         "https://tregtia.biz/wp-content/uploads/2021/08/Masterplani-1.jpg"
       ],
-      "alt": "Kodrina Apollonia",
-      "desc": "A 21-hectare urban masterplan for over 15,000 future residents, designed by Studio Libeskind. Tregtia is the developer and builder delivering 11 residential blocks with apartments from 45 to 170 m².",
-      "specs": "21 ha · 11 blocks · 15,000+ residents · 45–170 m²"
+      "name": { "en": "Kodrina — Apollonia", "sq": "Kodrina — Apollonia" },
+      "alt": { "en": "Kodrina Apollonia", "sq": "Kodrina Apollonia" },
+      "desc": {
+        "en": "A 21-hectare urban masterplan for over 15,000 future residents, designed by Studio Libeskind. Tregtia is the developer and builder delivering 11 residential blocks with apartments from 45 to 170 m².",
+        "sq": "Një masterplan urban prej 21 hektarësh për mbi 15,000 banorë të ardhshëm, i projektuar nga Studio Libeskind. Tregtia është zhvilluesi dhe ndërtuesi që dorëzon 11 blloqe rezidenciale me apartamente nga 45 deri në 170 m²."
+      },
+      "specs": {
+        "en": "21 ha · 11 blocks · 15,000+ residents · 45–170 m²",
+        "sq": "21 ha · 11 blloqe · 15,000+ banorë · 45–170 m²"
+      }
     },
     {
       "id": "aktash-davidofi",
-      "name": "Aktash — Davidofi",
+      "featured": false,
       "neighborhood": "Aktash",
       "location": "Prishtinë",
       "investor": "Tregtia Sh.p.k",
@@ -33,13 +40,20 @@
         "https://tregtia.biz/wp-content/gallery/aktash-davidofi/DSC_0814.JPG",
         "https://tregtia.biz/wp-content/gallery/aktash-davidofi/DSC_0819.JPG"
       ],
-      "alt": "Aktash Davidofi",
-      "desc": "Two residential blocks in the Aktash neighbourhood of Prishtinë — one nearing completion, one occupied. 70 residential units with ground-floor commercial spaces, underground parking, and full Tregtia in-house construction.",
-      "specs": "2 blocks · 70 units · B+P · Commercial ground floor · Underground parking"
+      "name": { "en": "Aktash — Davidofi", "sq": "Aktash — Davidofi" },
+      "alt": { "en": "Aktash Davidofi", "sq": "Aktash Davidofi" },
+      "desc": {
+        "en": "Two residential blocks in the Aktash neighbourhood of Prishtinë — one nearing completion, one occupied. 70 residential units with ground-floor commercial spaces, underground parking, and full Tregtia in-house construction.",
+        "sq": "Dy blloqe rezidenciale në lagjen Aktash të Prishtinës — njëri drejt përfundimit, tjetri i banuar. 70 njësi rezidenciale me hapësira komerciale në kat përdhes, parking nëntokësor dhe ndërtim i plotë nga vetë Tregtia."
+      },
+      "specs": {
+        "en": "2 blocks · 70 units · B+P · Commercial ground floor · Underground parking",
+        "sq": "2 blloqe · 70 njësi · B+P · Kati përdhes komercial · Parking nëntokësor"
+      }
     },
     {
       "id": "aktash-1-tetori",
-      "name": "Aktash 1 Tetori",
+      "featured": false,
       "neighborhood": "Aktash",
       "location": "Prishtinë",
       "investor": "Tregtia Sh.p.k",
@@ -51,13 +65,20 @@
         "https://tregtia.biz/wp-content/gallery/aktash-1-tetori/DSC_0833.JPG",
         "https://tregtia.biz/wp-content/gallery/aktash-1-tetori/DSC_0834.JPG"
       ],
-      "alt": "Aktash 1 Tetori",
-      "desc": "Residential building in the Aktash neighbourhood of Prishtinë. 25 residential units delivered with Tregtia's full in-house production capability — concrete, joinery, and glazing from Tregtia's own manufacturing facilities.",
-      "specs": "B+P+4+NK · 25 units · Commercial basement & ground floor"
+      "name": { "en": "Aktash 1 Tetori", "sq": "Aktash 1 Tetori" },
+      "alt": { "en": "Aktash 1 Tetori", "sq": "Aktash 1 Tetori" },
+      "desc": {
+        "en": "Residential building in the Aktash neighbourhood of Prishtinë. 25 residential units delivered with Tregtia's full in-house production capability — concrete, joinery, and glazing from Tregtia's own manufacturing facilities.",
+        "sq": "Ndërtesë rezidenciale në lagjen Aktash të Prishtinës. 25 njësi rezidenciale të dorëzuara me kapacitetin e plotë prodhues të Tregtia — beton, zdrukthëtari dhe qelq nga fabrikat e veta të Tregtia."
+      },
+      "specs": {
+        "en": "B+P+4+NK · 25 units · Commercial basement & ground floor",
+        "sq": "B+P+4+NK · 25 njësi · Bodrum dhe kat përdhes komercial"
+      }
     },
     {
       "id": "aktash-daxa",
-      "name": "Aktash Daxa",
+      "featured": false,
       "neighborhood": "Aktash",
       "location": "Prishtinë",
       "investor": "Tregtia Sh.p.k",
@@ -71,13 +92,20 @@
         "https://tregtia.biz/wp-content/gallery/aktash-daxa/DSC_0826.JPG",
         "https://tregtia.biz/wp-content/gallery/aktash-daxa/DSC_0828.JPG"
       ],
-      "alt": "Aktash Daxa",
-      "desc": "Residential building in the Aktash neighbourhood of Prishtinë. 18 apartments alongside commercial spaces on the ground floor and basement levels. Delivered with Tregtia's own concrete, PVC windows, and metalwork.",
-      "specs": "B+P+4+2NK · 18 units · Commercial ground floor & basement"
+      "name": { "en": "Aktash Daxa", "sq": "Aktash Daxa" },
+      "alt": { "en": "Aktash Daxa", "sq": "Aktash Daxa" },
+      "desc": {
+        "en": "Residential building in the Aktash neighbourhood of Prishtinë. 18 apartments alongside commercial spaces on the ground floor and basement levels. Delivered with Tregtia's own concrete, PVC windows, and metalwork.",
+        "sq": "Ndërtesë rezidenciale në lagjen Aktash të Prishtinës. 18 apartamente së bashku me hapësira komerciale në katin përdhes dhe në bodrum. Dorëzuar me betonin, dritaret PVC dhe metalpunimin e vetë Tregtia."
+      },
+      "specs": {
+        "en": "B+P+4+2NK · 18 units · Commercial ground floor & basement",
+        "sq": "B+P+4+2NK · 18 njësi · Kati përdhes dhe bodrumi komercial"
+      }
     },
     {
       "id": "apollonia-a19",
-      "name": "Apollonia A19",
+      "featured": false,
       "neighborhood": "Fushë Kosovë",
       "location": "Fushë Kosovë",
       "investor": "Tregtia Sh.p.k",
@@ -92,13 +120,20 @@
         "https://tregtia.biz/wp-content/gallery/apollonia-a19/DSC_0414.JPG",
         "https://tregtia.biz/wp-content/gallery/apollonia-a19/DSC_0416.JPG"
       ],
-      "alt": "Apollonia A19",
-      "desc": "Large-scale residential complex in Fushë Kosovë, consisting of 5 entrances over 8 floors with more than 114 residential units. Ground-floor commercial spaces, basement parking, and full Tregtia in-house supply chain.",
-      "specs": "5 entrances · B+P+7 · 114+ units · Commercial ground floor"
+      "name": { "en": "Apollonia A19", "sq": "Apollonia A19" },
+      "alt": { "en": "Apollonia A19", "sq": "Apollonia A19" },
+      "desc": {
+        "en": "Large-scale residential complex in Fushë Kosovë, consisting of 5 entrances over 8 floors with more than 114 residential units. Ground-floor commercial spaces, basement parking, and full Tregtia in-house supply chain.",
+        "sq": "Kompleks i madh rezidencial në Fushë Kosovë, i përbërë nga 5 hyrje mbi 8 kate me më shumë se 114 njësi rezidenciale. Hapësira komerciale në kat përdhes, parking në bodrum dhe zinxhir i plotë furnizimi nga vetë Tregtia."
+      },
+      "specs": {
+        "en": "5 entrances · B+P+7 · 114+ units · Commercial ground floor",
+        "sq": "5 hyrje · B+P+7 · 114+ njësi · Kati përdhes komercial"
+      }
     },
     {
       "id": "apollonia-a20",
-      "name": "Apollonia A20",
+      "featured": false,
       "neighborhood": "Fushë Kosovë",
       "location": "Fushë Kosovë",
       "investor": "Tregtia Sh.p.k",
@@ -111,13 +146,20 @@
         "https://tregtia.biz/wp-content/gallery/apollonia-a20/DSC_0482.JPG",
         "https://tregtia.biz/wp-content/gallery/apollonia-a20/DSC_0484.JPG"
       ],
-      "alt": "Apollonia A20",
-      "desc": "Four-block residential complex in Fushë Kosovë. Approximately 166 apartments with ground-floor commercial units, basement garages, an interior courtyard with open parking, and landscaped green spaces.",
-      "specs": "4 blocks · B+P+7 · ~166 units · Interior courtyard · Green spaces"
+      "name": { "en": "Apollonia A20", "sq": "Apollonia A20" },
+      "alt": { "en": "Apollonia A20", "sq": "Apollonia A20" },
+      "desc": {
+        "en": "Four-block residential complex in Fushë Kosovë. Approximately 166 apartments with ground-floor commercial units, basement garages, an interior courtyard with open parking, and landscaped green spaces.",
+        "sq": "Kompleks rezidencial me katër blloqe në Fushë Kosovë. Rreth 166 apartamente me njësi komerciale në kat përdhes, garazhe në bodrum, oborr të brendshëm me parking të hapur dhe hapësira të gjelbra të pejsazhuara."
+      },
+      "specs": {
+        "en": "4 blocks · B+P+7 · ~166 units · Interior courtyard · Green spaces",
+        "sq": "4 blloqe · B+P+7 · ~166 njësi · Oborr i brendshëm · Hapësira të gjelbra"
+      }
     },
     {
       "id": "apollonia-a21",
-      "name": "Apollonia A21",
+      "featured": false,
       "neighborhood": "Fushë Kosovë",
       "location": "Fushë Kosovë",
       "investor": "Tregtia Sh.p.k",
@@ -130,9 +172,16 @@
         "https://tregtia.biz/wp-content/gallery/apollonia-a21/DSC_0487.JPG",
         "https://tregtia.biz/wp-content/gallery/apollonia-a21/DSC_0495.JPG"
       ],
-      "alt": "Apollonia A21",
-      "desc": "Five-building residential complex in Fushë Kosovë. Approximately 170 apartments with ground-floor commercial spaces, basement parking, an interior courtyard with open parking, and green areas throughout.",
-      "specs": "5 buildings · B+P+7 · ~170 units · Basement parking · Green areas"
+      "name": { "en": "Apollonia A21", "sq": "Apollonia A21" },
+      "alt": { "en": "Apollonia A21", "sq": "Apollonia A21" },
+      "desc": {
+        "en": "Five-building residential complex in Fushë Kosovë. Approximately 170 apartments with ground-floor commercial spaces, basement parking, an interior courtyard with open parking, and green areas throughout.",
+        "sq": "Kompleks rezidencial me pesë ndërtesa në Fushë Kosovë. Rreth 170 apartamente me hapësira komerciale në kat përdhes, parking në bodrum, oborr të brendshëm me parking të hapur dhe zona të gjelbra në tërë kompleksin."
+      },
+      "specs": {
+        "en": "5 buildings · B+P+7 · ~170 units · Basement parking · Green areas",
+        "sq": "5 ndërtesa · B+P+7 · ~170 njësi · Parking në bodrum · Zona të gjelbra"
+      }
     }
   ],
   "heroImages": [

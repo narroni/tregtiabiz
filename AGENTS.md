@@ -20,11 +20,18 @@ There is no separate typecheck script; run `npx tsc --noEmit` before shipping ch
 - `src/main.tsx` — React entrypoint; imports `src/index.css` and mounts `src/App.tsx` into `#root`.
 - `src/App.tsx` — the public site: nav, hero, about, services, projects, contact, footer.
 - `src/content/site-data.json` — the single source of truth for CMS-editable content (projects,
-  hero images, social links). Both `App.tsx` and `AdminPage.tsx` import it directly.
-- `src/cms/` — the admin panel (`AdminPage.tsx`) and shared client-side helpers (`storage.ts`).
-- `api/cms/` — Vercel serverless functions: `login.ts`, `logout.ts`, `session.ts`, `save.ts`.
-- `api/_lib/` — server-only helpers shared by the functions above (`session.ts`, `password.ts`).
+  hero images, social links). Both `App.tsx` and `AdminPage.tsx` import it directly. Translatable
+  project fields (`name`, `alt`, `desc`, `specs`) are `{ en, sq }` objects — see `loc()` in `App.tsx`.
+- `public/uploads/` — images uploaded from the CMS land here (committed via `api/cms/upload.ts`)
+  and are served at `/uploads/<file>` by Vite/Vercel like any other `public/` asset.
+- `src/cms/` — the admin panel (`AdminPage.tsx`), shared client-side helpers (`storage.ts`), and
+  the upload-image resize helper (`resizeImage.ts`).
+- `api/cms/` — Vercel serverless functions: `login.ts`, `logout.ts`, `session.ts`, `save.ts`, `upload.ts`.
+- `api/_lib/` — server-only helpers shared by the functions above (`session.ts`, `password.ts`, `github.ts`).
 - `scripts/hash-password.mjs` — run locally to generate the `CMS_PASSWORD_HASH` env var value.
+- `scripts/verify-password.mjs` — local diagnostic: checks a password against a record without deploying.
+- `src/icons.tsx` — brand-mark icons (Instagram, Facebook) that generic sets like lucide deliberately
+  omit; everything else icon-shaped uses `lucide-react` directly.
 - `src/ThreeCanvas.tsx` — pure Three.js scene setup (no React), consumed via `useEffect` hooks.
 - `src/assets/` — static images bundled into the app (currently just the logo).
 - `src/index.css` — Tailwind v4 entrypoint, theme tokens, global styles, keyframes.
@@ -57,6 +64,24 @@ sensitive is ever stored in the browser.
 
 Required environment variables (set in Vercel → Settings → Environment Variables, see
 `.env.example`): `CMS_PASSWORD_HASH`, `CMS_SESSION_SECRET`, `GITHUB_TOKEN`, `GITHUB_REPO`.
+
+Images can be pasted as a URL or uploaded from a device; uploads are resized/re-encoded to JPEG
+client-side (`resizeImage.ts`, capped at 1920px) and committed to `public/uploads/` via
+`api/cms/upload.ts` — same GitHub-as-storage approach as content, so there's no separate file
+storage or CDN. Because everything (content edits and uploaded images) lands as a real git commit,
+the repo will grow over time; that's an accepted tradeoff of not running a database/CDN.
+
+The homepage can be curated: a project's `featured` flag (checkbox in the admin editor) controls
+whether it appears in the default homepage set. If no project is marked featured, the homepage
+falls back to showing everything (see `Projects` in `App.tsx`).
+
+## Responsive layout
+
+The site uses inline `style={{}}` objects, not CSS classes, so there are no `@media` breakpoints —
+structural layout changes (row → column, nav → hamburger menu, grid column counts) go through the
+`useMediaQuery` hook in `App.tsx` (breakpoint: `max-width: 860px`), used per-component rather than
+globally. Follow that pattern for any new layout that needs to change at a breakpoint; fluid sizing
+(font sizes, gaps, padding) should keep using `clamp()`/`minmax()` instead where possible.
 
 ## Code quality
 

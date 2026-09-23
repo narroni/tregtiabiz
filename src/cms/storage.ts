@@ -6,18 +6,24 @@
 // of content, sessions, or passwords anymore — auth and persistence are both
 // handled server-side so they can't be read or bypassed from the browser.
 
+/** A field the CMS operator fills in for both languages the site supports. */
+export type Localized = { en: string; sq: string };
+
 export type CmsProject = {
   id: string;
-  name: string;
   neighborhood: string;
   location: string;
   investor: string;
   use: string;
   img: string;
   images: string[];
-  alt: string;
-  desc: string;
-  specs: string;
+  /** Shown on the homepage (and counted toward the default set) when true.
+   *  If no project has this set, the homepage falls back to showing all. */
+  featured: boolean;
+  name: Localized;
+  alt: Localized;
+  desc: Localized;
+  specs: Localized;
 };
 
 export type CmsData = {

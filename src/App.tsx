@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Menu, X } from "lucide-react";
 import tregtiaLogo from "@/assets/tregtia-logo.png";
 import { initParticleField } from "./ThreeCanvas";
 import AdminPage from "./cms/AdminPage";
 import { isSafeHttpUrl } from "./cms/storage";
 import siteData from "./content/site-data.json";
+import { InstagramIcon, FacebookIcon } from "./icons";
 
 function ParticleField() {
   const ref = useRef<HTMLDivElement>(null);
@@ -35,10 +37,18 @@ const T = {
 type Lang = "en" | "sq";
 type Page = { type: "home" } | { type: "project"; id: string };
 
+type Localized = { en: string; sq: string };
 type Project = {
-  id: string; name: string; neighborhood: string; location: string;
-  investor: string; use: string; img: string; images: string[]; alt: string; desc: string; specs: string;
+  id: string; neighborhood: string; location: string; investor: string; use: string;
+  img: string; images: string[]; featured: boolean;
+  name: Localized; alt: Localized; desc: Localized; specs: Localized;
 };
+
+/** Picks the field for the active language, falling back to English if the
+ *  Albanian field was left empty (e.g. not translated yet). */
+function loc(field: Localized, lang: Lang): string {
+  return (lang === "sq" ? field.sq : field.en) || field.en || field.sq;
+}
 
 // ── Editable content (projects, hero images, social links) — src/content/site-data.json ──
 // This is the single source of truth for CMS-editable content. The admin panel
@@ -109,6 +119,22 @@ function useIntersection(threshold = 0.15) {
   return { ref, visible };
 }
 
+/** Tracks a CSS media query so layouts can switch at real breakpoints —
+ *  needed because this codebase styles with inline `style={{}}` objects
+ *  rather than CSS classes, so there's no other way to express "only below
+ *  this width" for structural changes (row → column, hidden nav, etc). */
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const mql = window.matchMedia(query);
+    const handler = () => setMatches(mql.matches);
+    handler();
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, [query]);
+  return matches;
+}
+
 // ── Logo ──────────────────────────────────────────────────────────────────────
 function TLogo({ height = 28, dark = false }: { height?: number; dark?: boolean }) {
   return (
@@ -134,6 +160,8 @@ function Nav({
   onGoHome: () => void;
 }) {
   const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const isMobile = useMediaQuery("(max-width: 860px)");
 
   useEffect(() => {
     const h = () => setScrolled(window.scrollY > 40);
@@ -142,7 +170,12 @@ function Nav({
     return () => window.removeEventListener("scroll", h);
   }, []);
 
+  // Collapse the mobile menu automatically if the viewport grows past the
+  // breakpoint (e.g. rotating a tablet) so it doesn't get stuck open.
+  useEffect(() => { if (!isMobile) setMenuOpen(false); }, [isMobile]);
+
   const handleLink = (id: string) => {
+    setMenuOpen(false);
     if (currentPage.type !== "home") {
       // Go home first, then scroll after a small delay for DOM render
       onGoHome();
@@ -154,12 +187,27 @@ function Nav({
 
   const handleLogoClick = (e: React.MouseEvent) => {
     e.preventDefault();
+    setMenuOpen(false);
     if (currentPage.type !== "home") {
       onGoHome();
     } else {
       scrollToTop();
     }
   };
+
+  const langSwitcher = (
+    <div style={{ display: "flex", borderWidth: 1, borderStyle: "solid", borderColor: C.divider, borderRadius: 8, overflow: "hidden" }}>
+      {(["en", "sq"] as Lang[]).map((l) => (
+        <button
+          key={l}
+          onClick={() => onLangChange(l)}
+          style={{ fontFamily: T.body, fontSize: 11, fontWeight: 600, background: lang === l ? C.brand : "transparent", color: lang === l ? C.white : C.body, border: "none", padding: "5px 10px", cursor: "pointer", transition: "background 0.15s, color 0.15s", textTransform: "uppercase" }}
+        >
+          {l.toUpperCase()}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <motion.header
@@ -176,38 +224,67 @@ function Nav({
           ? "0 8px 32px rgba(11,18,32,0.10), 0 1px 4px rgba(11,18,32,0.06)"
           : "0 2px 12px rgba(11,18,32,0.06)",
         transition: "box-shadow 0.3s ease, background 0.3s ease",
+        overflow: "hidden",
       }}
     >
-      <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 58 }}>
+      <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 clamp(16px,4vw,24px)", display: "flex", alignItems: "center", justifyContent: "space-between", height: 58 }}>
         <a href="#" onClick={handleLogoClick} style={{ textDecoration: "none", flexShrink: 0 }}>
           <TLogo height={24} dark={false} />
         </a>
-        <nav style={{ display: "flex", gap: 4, alignItems: "center" }}>
-          {NAV_LINKS.map(({ id, labelEn, labelSq }) => (
-            <button
-              key={id}
-              onClick={() => handleLink(id)}
-              style={{ fontFamily: T.body, fontSize: 13, fontWeight: 400, color: C.body, background: "none", border: "none", padding: "6px 12px", cursor: "pointer", borderRadius: 8, transition: "color 0.15s, background 0.15s" }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = C.headline; e.currentTarget.style.background = C.surface; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = C.body; e.currentTarget.style.background = "none"; }}
-            >
-              {lang === "en" ? labelEn : labelSq}
-            </button>
-          ))}
-          <div style={{ width: 1, height: 18, background: C.divider, margin: "0 8px" }} />
-          <div style={{ display: "flex", borderWidth: 1, borderStyle: "solid", borderColor: C.divider, borderRadius: 8, overflow: "hidden" }}>
-            {(["en", "sq"] as Lang[]).map((l) => (
+
+        {isMobile ? (
+          <button
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            style={{ background: "none", border: "none", cursor: "pointer", color: C.headline, display: "flex", alignItems: "center", padding: 6 }}
+          >
+            {menuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
+        ) : (
+          <nav style={{ display: "flex", gap: 4, alignItems: "center" }}>
+            {NAV_LINKS.map(({ id, labelEn, labelSq }) => (
               <button
-                key={l}
-                onClick={() => onLangChange(l)}
-                style={{ fontFamily: T.body, fontSize: 11, fontWeight: 600, background: lang === l ? C.brand : "transparent", color: lang === l ? C.white : C.body, border: "none", padding: "5px 10px", cursor: "pointer", transition: "background 0.15s, color 0.15s", textTransform: "uppercase" }}
+                key={id}
+                onClick={() => handleLink(id)}
+                style={{ fontFamily: T.body, fontSize: 13, fontWeight: 400, color: C.body, background: "none", border: "none", padding: "6px 12px", cursor: "pointer", borderRadius: 8, transition: "color 0.15s, background 0.15s" }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = C.headline; e.currentTarget.style.background = C.surface; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = C.body; e.currentTarget.style.background = "none"; }}
               >
-                {l.toUpperCase()}
+                {lang === "en" ? labelEn : labelSq}
               </button>
             ))}
-          </div>
-        </nav>
+            <div style={{ width: 1, height: 18, background: C.divider, margin: "0 8px" }} />
+            {langSwitcher}
+          </nav>
+        )}
       </div>
+
+      {/* Mobile dropdown */}
+      {isMobile && (
+        <AnimatePresence>
+          {menuOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+              style={{ borderTopWidth: 1, borderTopStyle: "solid", borderTopColor: C.divider }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", padding: "8px 16px 16px" }}>
+                {NAV_LINKS.map(({ id, labelEn, labelSq }) => (
+                  <button
+                    key={id}
+                    onClick={() => handleLink(id)}
+                    style={{ fontFamily: T.body, fontSize: 15, fontWeight: 400, color: C.body, background: "none", border: "none", padding: "12px 8px", textAlign: "left", cursor: "pointer" }}
+                  >
+                    {lang === "en" ? labelEn : labelSq}
+                  </button>
+                ))}
+                <div style={{ height: 1, background: C.divider, margin: "8px 0" }} />
+                {langSwitcher}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
     </motion.header>
   );
 }
@@ -216,6 +293,7 @@ function Nav({
 function Hero({ lang, heroImages }: { lang: Lang; heroImages: string[] }) {
   const tl = (en: string, sq: string) => lang === "en" ? en : sq;
   const [current, setCurrent] = useState(0);
+  const isMobile = useMediaQuery("(max-width: 860px)");
 
   useEffect(() => {
     setCurrent(0);
@@ -227,9 +305,9 @@ function Hero({ lang, heroImages }: { lang: Lang; heroImages: string[] }) {
   }, [heroImages.length]);
 
   return (
-    <section style={{ display: "flex", height: "100vh", minHeight: 640 }}>
+    <section style={{ display: "flex", flexDirection: isMobile ? "column" : "row", height: isMobile ? "auto" : "100vh", minHeight: isMobile ? undefined : 640 }}>
       {/* Left: crossfade photo slideshow */}
-      <div style={{ flex: "0 0 58%", position: "relative", overflow: "hidden" }}>
+      <div style={{ flex: isMobile ? "0 0 auto" : "0 0 58%", width: isMobile ? "100%" : undefined, height: isMobile ? "48vh" : undefined, minHeight: isMobile ? 320 : undefined, position: "relative", overflow: "hidden" }}>
         <AnimatePresence>
           <motion.div
             key={current}
@@ -240,8 +318,8 @@ function Hero({ lang, heroImages }: { lang: Lang; heroImages: string[] }) {
             style={{ position: "absolute", inset: 0, backgroundImage: `url(${heroImages[current]})`, backgroundSize: "cover", backgroundPosition: "center 30%", filter: "saturate(0.75) brightness(0.88)" }}
           />
         </AnimatePresence>
-        {/* Fade to right */}
-        <div style={{ position: "absolute", inset: 0, zIndex: 2, background: `linear-gradient(to right, transparent 55%, ${C.white} 100%)` }} />
+        {/* Fade to right (desktop) / bottom (mobile) */}
+        <div style={{ position: "absolute", inset: 0, zIndex: 2, background: isMobile ? `linear-gradient(to bottom, transparent 60%, ${C.white} 100%)` : `linear-gradient(to right, transparent 55%, ${C.white} 100%)` }} />
         {/* Slide dots */}
         <div style={{ position: "absolute", bottom: 28, left: 28, zIndex: 3, display: "flex", gap: 6 }}>
           {heroImages.map((_, i) => (
@@ -251,7 +329,7 @@ function Hero({ lang, heroImages }: { lang: Lang; heroImages: string[] }) {
       </div>
 
       {/* Right: info panel */}
-      <div style={{ flex: "0 0 42%", background: C.white, display: "flex", flexDirection: "column", justifyContent: "center", padding: "80px clamp(28px,4vw,72px) 40px", borderLeft: `1px solid ${C.divider}` }}>
+      <div style={{ flex: isMobile ? "1 1 auto" : "0 0 42%", background: C.white, display: "flex", flexDirection: "column", justifyContent: "center", padding: isMobile ? "32px clamp(20px,6vw,40px) 48px" : "80px clamp(28px,4vw,72px) 40px", borderLeft: isMobile ? "none" : `1px solid ${C.divider}` }}>
         <motion.p
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.7 }}
@@ -325,6 +403,7 @@ function About({ lang }: { lang: Lang }) {
   const [progressKey, setProgressKey] = useState(0);
   const { ref, visible } = useIntersection(0.1);
   const sliderRef = useRef<HTMLDivElement>(null);
+  const isMobile = useMediaQuery("(max-width: 860px)");
 
   const goTo = useCallback((i: number) => {
     setActive(Math.max(0, Math.min(TIMELINE.length - 1, i)));
@@ -370,7 +449,7 @@ function About({ lang }: { lang: Lang }) {
   return (
     <section id="about" ref={ref} style={{ background: C.white, borderTop: `1px solid ${C.divider}`, overflow: "hidden" }}>
       {/* Top: story */}
-      <div style={{ maxWidth: 1320, margin: "0 auto", padding: "clamp(80px,12vh,140px) 40px clamp(48px,8vh,72px)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "clamp(48px,7vw,96px)", alignItems: "start" }}>
+      <div style={{ maxWidth: 1320, margin: "0 auto", padding: "clamp(80px,12vh,140px) clamp(20px,5vw,40px) clamp(48px,8vh,72px)", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "clamp(32px,7vw,96px)", alignItems: "start" }}>
         <motion.div
           initial={{ opacity: 0, y: 28 }} whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }} transition={{ duration: 0.7 }}
@@ -416,7 +495,7 @@ function About({ lang }: { lang: Lang }) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -60 }}
               transition={{ duration: 0.55, ease: [0.4, 0, 0.2, 1] }}
-              style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "clamp(40px,6vw,80px)", maxWidth: 1320, margin: "0 auto", padding: "clamp(48px,8vh,88px) 40px" }}
+              style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "clamp(24px,6vw,80px)", maxWidth: 1320, margin: "0 auto", padding: "clamp(40px,8vh,88px) clamp(20px,5vw,40px)" }}
             >
               {/* Giant ghost year */}
               <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
@@ -438,7 +517,7 @@ function About({ lang }: { lang: Lang }) {
         </div>
 
         {/* Controls row */}
-        <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 40px 28px", display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 clamp(20px,5vw,40px) 28px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           {/* Prev / Next */}
           <button onClick={prev} style={{ width: 38, height: 38, borderRadius: 8, borderWidth: 1, borderStyle: "solid", borderColor: "rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.07)", color: C.white, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.15s" }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.14)")}
@@ -475,15 +554,16 @@ function About({ lang }: { lang: Lang }) {
 function Services({ lang }: { lang: Lang }) {
   const tl = (en: string, sq: string) => lang === "en" ? en : sq;
   const tags = lang === "en" ? PRODUCTION_TAGS_EN : PRODUCTION_TAGS_SQ;
+  const isMobile = useMediaQuery("(max-width: 860px)");
   return (
     <section id="services" style={{ background: C.surface, borderTop: `1px solid ${C.divider}`, padding: "clamp(60px,8vh,100px) 0" }}>
-      <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 40px" }}>
+      <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 clamp(20px,5vw,40px)" }}>
 
         {/* Compact header row */}
         <motion.div
           initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.6 }}
-          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 clamp(32px,5vw,80px)", alignItems: "end", marginBottom: 40, paddingBottom: 32, borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: C.divider }}
+          style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "12px clamp(32px,5vw,80px)", alignItems: isMobile ? "start" : "end", marginBottom: 40, paddingBottom: 32, borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: C.divider }}
         >
           <h2 style={{ fontFamily: T.display, fontSize: "clamp(32px,3.5vw,48px)", fontWeight: 400, lineHeight: 1.0, color: C.headline, margin: 0, letterSpacing: "-0.03em" }}>
             {tl("What we", "Çfarë")}&nbsp;<em style={{ fontStyle: "italic", color: C.muted }}>{tl("deliver.", "ofrojmë.")}</em>
@@ -493,8 +573,8 @@ function Services({ lang }: { lang: Lang }) {
           </p>
         </motion.div>
 
-        {/* Steps — 2-column grid, compact */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1px", background: C.divider, borderWidth: 1, borderStyle: "solid", borderColor: C.divider, borderRadius: 8, overflow: "hidden", marginBottom: 28 }}>
+        {/* Steps — 2-column grid, compact (1 column on mobile) */}
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "1px", background: C.divider, borderWidth: 1, borderStyle: "solid", borderColor: C.divider, borderRadius: 8, overflow: "hidden", marginBottom: 28 }}>
           {PROCESS_STEPS.map((step, i) => (
             <motion.div
               key={step.id}
@@ -539,7 +619,7 @@ function Services({ lang }: { lang: Lang }) {
 }
 
 // ── Projects — featured card + photo grid ─────────────────────────────────────
-function ProjectCard({ p, i, onSelectProject }: { p: Project; i: number; onSelectProject: (id: string) => void }) {
+function ProjectCard({ p, i, lang, onSelectProject }: { p: Project; i: number; lang: Lang; onSelectProject: (id: string) => void }) {
   const [hovered, setHovered] = useState(false);
   return (
     <motion.button
@@ -552,7 +632,7 @@ function ProjectCard({ p, i, onSelectProject }: { p: Project; i: number; onSelec
       style={{ position: "relative", aspectRatio: "4/3", borderRadius: 8, overflow: "hidden", border: "none", cursor: "pointer", display: "block", padding: 0 }}
     >
       <motion.img
-        src={p.img} alt={p.alt}
+        src={p.img} alt={loc(p.alt, lang)}
         animate={{ scale: hovered ? 1.06 : 1, filter: hovered ? "saturate(0.95) brightness(0.98)" : "saturate(0.78) brightness(0.88)" }}
         transition={{ duration: 0.55, ease: [0.25, 0.1, 0.25, 1] }}
         style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
@@ -568,7 +648,7 @@ function ProjectCard({ p, i, onSelectProject }: { p: Project; i: number; onSelec
           transition={{ duration: 0.25 }}
           style={{ fontFamily: T.body, fontSize: 9, fontWeight: 600, color: "rgba(255,255,255,0.55)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 5 }}
         >{p.neighborhood} · {p.location}</motion.div>
-        <div style={{ fontFamily: T.display, fontSize: "clamp(14px,1.4vw,20px)", fontWeight: 400, color: C.white, letterSpacing: "-0.015em", lineHeight: 1.2 }}>{p.name}</div>
+        <div style={{ fontFamily: T.display, fontSize: "clamp(14px,1.4vw,20px)", fontWeight: 400, color: C.white, letterSpacing: "-0.015em", lineHeight: 1.2 }}>{loc(p.name, lang)}</div>
         <motion.div
           animate={{ opacity: hovered ? 1 : 0, y: hovered ? 0 : 6 }}
           transition={{ duration: 0.25, delay: 0.05 }}
@@ -584,25 +664,34 @@ function ProjectCard({ p, i, onSelectProject }: { p: Project; i: number; onSelec
 function Projects({ lang, projects, onSelectProject }: { lang: Lang; projects: Project[]; onSelectProject: (id: string) => void }) {
   const tl = (en: string, sq: string) => lang === "en" ? en : sq;
   const [filterKey, setFilterKey] = useState("All");
-  const filtered = filterKey === "All" ? projects : projects.filter((p) => p.neighborhood === filterKey);
+  const [showAll, setShowAll] = useState(false);
+
+  // CMS operators can mark specific projects as "featured" to curate what the
+  // homepage leads with. If none are marked, everything shows (no behavior
+  // change from before that feature existed).
+  const curated = projects.filter((p) => p.featured);
+  const hasCuration = curated.length > 0 && curated.length < projects.length;
+  const baseList = hasCuration && !showAll ? curated : projects;
+
+  const filtered = filterKey === "All" ? baseList : baseList.filter((p) => p.neighborhood === filterKey);
   const neighborLabels = lang === "en" ? NEIGHBORHOODS_EN : NEIGHBORHOODS_SQ;
-  const featured = filtered[0];
+  const heroCard = filtered[0];
   const rest = filtered.slice(1);
 
   return (
     <section id="projects" style={{ background: C.bg, padding: "clamp(80px,12vh,120px) 0", borderTop: `1px solid ${C.divider}` }}>
-      <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 40px" }}>
+      <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 clamp(20px,5vw,40px)" }}>
 
         {/* Header + filter */}
         <motion.div
           initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.55 }}
-          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}
+          style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 20 }}
         >
           <h2 style={{ fontFamily: T.display, fontSize: "clamp(28px,3.5vw,44px)", fontWeight: 400, color: C.headline, margin: 0, letterSpacing: "-0.03em" }}>
             {tl("Projects", "Projektet")}
           </h2>
-          <div style={{ display: "flex", gap: 4 }}>
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
             {NEIGHBORHOOD_KEYS.map((key, i) => {
               const active = key === filterKey;
               return (
@@ -620,17 +709,17 @@ function Projects({ lang, projects, onSelectProject }: { lang: Lang; projects: P
 
         {/* Featured large card */}
         <AnimatePresence mode="wait">
-          {featured && (
+          {heroCard && (
             <motion.button
-              key={featured.id + "-featured"}
+              key={heroCard.id + "-featured"}
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
               transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
-              onClick={() => onSelectProject(featured.id)}
+              onClick={() => onSelectProject(heroCard.id)}
               style={{ position: "relative", width: "100%", height: "clamp(280px,38vh,460px)", borderRadius: 10, overflow: "hidden", border: "none", cursor: "pointer", display: "block", padding: 0, marginBottom: 12 }}
               whileHover="hover"
             >
               <motion.img
-                src={featured.img} alt={featured.alt}
+                src={heroCard.img} alt={loc(heroCard.alt, lang)}
                 variants={{ hover: { scale: 1.04, filter: "saturate(0.9) brightness(0.95)" } }}
                 transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
                 style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: "saturate(0.8) brightness(0.88)" }}
@@ -641,20 +730,33 @@ function Projects({ lang, projects, onSelectProject }: { lang: Lang; projects: P
                   variants={{ hover: { opacity: 1, y: 0 } }}
                   initial={{ opacity: 0, y: 8 }}
                   style={{ fontFamily: T.body, fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.55)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}
-                >{featured.neighborhood} · {featured.location}</motion.div>
-                <div style={{ fontFamily: T.display, fontSize: "clamp(22px,3vw,38px)", fontWeight: 400, color: C.white, letterSpacing: "-0.025em", lineHeight: 1.1 }}>{featured.name}</div>
-                <div style={{ fontFamily: T.body, fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 8 }}>{featured.specs}</div>
+                >{heroCard.neighborhood} · {heroCard.location}</motion.div>
+                <div style={{ fontFamily: T.display, fontSize: "clamp(22px,3vw,38px)", fontWeight: 400, color: C.white, letterSpacing: "-0.025em", lineHeight: 1.1 }}>{loc(heroCard.name, lang)}</div>
+                <div style={{ fontFamily: T.body, fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 8 }}>{loc(heroCard.specs, lang)}</div>
               </div>
             </motion.button>
           )}
         </AnimatePresence>
 
         {/* Remaining grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
           {rest.map((p, i) => (
-            <ProjectCard key={p.id} p={p} i={i} onSelectProject={onSelectProject} />
+            <ProjectCard key={p.id} p={p} i={i} lang={lang} onSelectProject={onSelectProject} />
           ))}
         </div>
+
+        {hasCuration && !showAll && (
+          <div style={{ display: "flex", justifyContent: "center", marginTop: 32 }}>
+            <button
+              onClick={() => setShowAll(true)}
+              style={{ fontFamily: T.body, fontSize: 13, fontWeight: 500, color: C.brand, background: "transparent", padding: "10px 24px", borderRadius: 8, borderWidth: 1, borderStyle: "solid", borderColor: C.brand, cursor: "pointer", transition: "background 0.15s, color 0.15s" }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = C.brand; e.currentTarget.style.color = C.white; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.brand; }}
+            >
+              {tl(`View all ${projects.length} projects`, `Shiko të gjitha ${projects.length} projektet`)} →
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );
@@ -665,6 +767,7 @@ function ProjectPage({ projectId, lang, projects, onBack }: { projectId: string;
   const tl = (en: string, sq: string) => lang === "en" ? en : sq;
   const project = projects.find((p) => p.id === projectId);
   const [activeImg, setActiveImg] = useState(0);
+  const isMobile = useMediaQuery("(max-width: 860px)");
   useEffect(() => { window.scrollTo(0, 0); }, []);
   if (!project) return null;
 
@@ -673,7 +776,7 @@ function ProjectPage({ projectId, lang, projects, onBack }: { projectId: string;
     { key: tl("Location", "Vendndodhja"),  val: project.location },
     { key: tl("Investor", "Investitori"),  val: project.investor },
     { key: tl("Use", "Përdorimi"),         val: project.use },
-    { key: tl("Specs", "Specifikimet"),    val: project.specs },
+    { key: tl("Specs", "Specifikimet"),    val: loc(project.specs, lang) },
   ];
 
   return (
@@ -684,26 +787,26 @@ function ProjectPage({ projectId, lang, projects, onBack }: { projectId: string;
           <motion.img
             key={activeImg}
             src={project.images[activeImg]}
-            alt={project.alt}
+            alt={loc(project.alt, lang)}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
             style={{ width: "100%", height: "100%", objectFit: "cover", filter: "saturate(0.82) contrast(1.04) brightness(0.88)", position: "absolute", inset: 0 }}
           />
         </AnimatePresence>
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(11,18,32,0.35) 0%, transparent 35%, rgba(11,18,32,0.65) 100%)" }} />
-        <button onClick={onBack} style={{ position: "absolute", top: 28, left: 40, display: "inline-flex", alignItems: "center", gap: 8, fontFamily: T.body, fontSize: 12, fontWeight: 500, color: C.white, background: "rgba(255,255,255,0.12)", backdropFilter: "blur(12px)", borderWidth: 1, borderStyle: "solid", borderColor: "rgba(255,255,255,0.25)", padding: "8px 16px", borderRadius: 8, cursor: "pointer", transition: "background 0.15s" }}
+        <button onClick={onBack} style={{ position: "absolute", top: 20, left: "clamp(16px,5vw,40px)", display: "inline-flex", alignItems: "center", gap: 8, fontFamily: T.body, fontSize: 12, fontWeight: 500, color: C.white, background: "rgba(255,255,255,0.12)", backdropFilter: "blur(12px)", borderWidth: 1, borderStyle: "solid", borderColor: "rgba(255,255,255,0.25)", padding: "8px 16px", borderRadius: 8, cursor: "pointer", transition: "background 0.15s" }}
           onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.2)")}
           onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.12)")}>
           <svg width="14" height="10" viewBox="0 0 14 10" fill="none"><path d="M13 5H1M6 9L1 5l5-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
           {tl("All projects", "Të gjitha projektet")}
         </button>
         {/* Image counter */}
-        <div style={{ position: "absolute", top: 28, right: 40, fontFamily: T.body, fontSize: 11, fontWeight: 500, color: "rgba(255,255,255,0.55)", fontVariantNumeric: "tabular-nums" }}>
+        <div style={{ position: "absolute", top: 24, right: "clamp(16px,5vw,40px)", fontFamily: T.body, fontSize: 11, fontWeight: 500, color: "rgba(255,255,255,0.55)", fontVariantNumeric: "tabular-nums" }}>
           {String(activeImg + 1).padStart(2, "0")} / {String(project.images.length).padStart(2, "0")}
         </div>
-        <div style={{ position: "absolute", bottom: 36, left: 40 }}>
+        <div style={{ position: "absolute", bottom: 28, left: "clamp(16px,5vw,40px)", right: "clamp(16px,5vw,40px)" }}>
           <span style={{ fontFamily: T.body, fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: "0.1em", display: "block", marginBottom: 8 }}>{project.neighborhood} · {project.location}</span>
-          <h1 style={{ fontFamily: T.display, fontSize: "clamp(28px,4vw,52px)", fontWeight: 400, color: C.white, margin: 0, letterSpacing: "-0.03em" }}>{project.name}</h1>
+          <h1 style={{ fontFamily: T.display, fontSize: "clamp(28px,4vw,52px)", fontWeight: 400, color: C.white, margin: 0, letterSpacing: "-0.03em" }}>{loc(project.name, lang)}</h1>
         </div>
         {/* Arrow nav on hero */}
         {project.images.length > 1 && (
@@ -720,7 +823,7 @@ function ProjectPage({ projectId, lang, projects, onBack }: { projectId: string;
 
       {/* Thumbnail strip */}
       {project.images.length > 1 && (
-        <div style={{ background: C.white, borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: C.divider, padding: "12px 40px", display: "flex", gap: 8, overflowX: "auto" }}>
+        <div style={{ background: C.white, borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: C.divider, padding: "12px clamp(20px,5vw,40px)", display: "flex", gap: 8, overflowX: "auto" }}>
           {project.images.map((src, i) => (
             <button key={i} onClick={() => setActiveImg(i)} style={{ flexShrink: 0, width: 80, height: 56, borderRadius: 6, overflow: "hidden", borderWidth: 2, borderStyle: "solid", borderColor: i === activeImg ? C.brand : "transparent", padding: 0, cursor: "pointer", transition: "border-color 0.15s" }}>
               <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", filter: i === activeImg ? "none" : "saturate(0.5) brightness(0.85)" }} />
@@ -730,17 +833,17 @@ function ProjectPage({ projectId, lang, projects, onBack }: { projectId: string;
       )}
 
       {/* Content */}
-      <div style={{ maxWidth: 1320, margin: "0 auto", padding: "60px 40px 120px", display: "grid", gridTemplateColumns: "1fr 380px", gap: 64, alignItems: "start" }}>
+      <div style={{ maxWidth: 1320, margin: "0 auto", padding: "48px clamp(20px,5vw,40px) 80px", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 380px", gap: isMobile ? 32 : 64, alignItems: "start" }}>
         <div>
           <h2 style={{ fontFamily: T.display, fontSize: "clamp(22px,2.5vw,30px)", fontWeight: 400, color: C.headline, margin: "0 0 16px", letterSpacing: "-0.025em" }}>{tl("About this project", "Rreth këtij projekti")}</h2>
-          <p style={{ fontFamily: T.body, fontSize: 15, lineHeight: 1.85, color: C.body, margin: "0 0 32px" }}>{project.desc}</p>
+          <p style={{ fontFamily: T.body, fontSize: 15, lineHeight: 1.85, color: C.body, margin: "0 0 32px" }}>{loc(project.desc, lang)}</p>
           <button onClick={onBack} style={{ fontFamily: T.body, fontSize: 13, fontWeight: 500, color: C.brand, background: "none", borderWidth: 1, borderStyle: "solid", borderColor: C.brand, padding: "10px 22px", borderRadius: 8, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, transition: "background 0.15s, color 0.15s" }}
             onMouseEnter={(e) => { e.currentTarget.style.background = C.brand; e.currentTarget.style.color = C.white; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = C.brand; }}>
             ← {tl("Back to portfolio", "Kthehu te portofoli")}
           </button>
         </div>
-        <div style={{ background: C.white, borderWidth: 1, borderStyle: "solid", borderColor: C.divider, borderRadius: 8, overflow: "hidden", position: "sticky", top: 80 }}>
+        <div style={{ background: C.white, borderWidth: 1, borderStyle: "solid", borderColor: C.divider, borderRadius: 8, overflow: "hidden", position: isMobile ? "static" : "sticky", top: 80 }}>
           <div style={{ fontFamily: T.body, fontSize: 10, fontWeight: 600, color: C.muted, letterSpacing: "0.1em", textTransform: "uppercase", padding: "12px 18px", background: C.surface, borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: C.divider }}>{tl("Project data", "Të dhënat")}</div>
           <dl style={{ margin: 0 }}>
             {specs.map((s, i) => (
@@ -761,9 +864,10 @@ function ProjectPage({ projectId, lang, projects, onBack }: { projectId: string;
 // ── Contact ───────────────────────────────────────────────────────────────────
 function Contact({ lang }: { lang: Lang }) {
   const tl = (en: string, sq: string) => lang === "en" ? en : sq;
+  const isMobile = useMediaQuery("(max-width: 860px)");
   return (
-    <section id="contact" style={{ background: C.bg, borderTop: `1px solid ${C.divider}`, padding: "clamp(80px,12vh,140px) 0" }}>
-      <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 40px", display: "grid", gridTemplateColumns: "1fr 1.3fr", gap: "clamp(48px,7vw,96px)", alignItems: "start" }}>
+    <section id="contact" style={{ background: C.bg, borderTop: `1px solid ${C.divider}`, padding: "clamp(60px,12vh,140px) 0" }}>
+      <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 clamp(20px,5vw,40px)", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1.3fr", gap: "clamp(40px,7vw,96px)", alignItems: "start" }}>
         <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.7 }}>
           <h2 style={{ fontFamily: T.display, fontSize: "clamp(34px,4vw,52px)", fontWeight: 400, lineHeight: 1.06, color: C.headline, margin: "0 0 12px", letterSpacing: "-0.03em" }}>
             {tl("Get in touch.", "Na kontaktoni.")}
@@ -803,13 +907,14 @@ function Contact({ lang }: { lang: Lang }) {
 // ── Footer ────────────────────────────────────────────────────────────────────
 function Footer({ lang, social }: { lang: Lang; social: { instagram: string; facebook: string } }) {
   const tl = (en: string, sq: string) => lang === "en" ? en : sq;
+  const isMobile = useMediaQuery("(max-width: 860px)");
   // Guard against unsafe URI schemes (e.g. javascript:) ending up in an <a href>,
   // regardless of how they got into storage.
   const safeInstagram = isSafeHttpUrl(social.instagram) ? social.instagram : "";
   const safeFacebook = isSafeHttpUrl(social.facebook) ? social.facebook : "";
   return (
     <footer style={{ background: C.headline, padding: "36px 0" }}>
-      <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 40px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
+      <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 clamp(20px,5vw,40px)", display: "flex", justifyContent: isMobile ? "center" : "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px 24px" }}>
         <TLogo height={22} dark />
         <span style={{ fontFamily: T.body, fontSize: 12, color: "rgba(244,246,249,0.3)" }}>© 1999–2026 Tregtia Sh.p.k. {tl("All rights reserved.", "Të gjitha të drejtat e rezervuara.")}</span>
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
@@ -822,16 +927,12 @@ function Footer({ lang, social }: { lang: Lang; social: { instagram: string; fac
               style={{ color: "rgba(244,246,249,0.45)", textDecoration: "none", display: "flex", alignItems: "center", transition: "color 0.15s" }}
               onMouseEnter={(e) => (e.currentTarget.style.color = C.white)}
               onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(244,246,249,0.45)")}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
-              </svg>
+              <InstagramIcon />
             </a>
           ) : (
             <span title={tl("Instagram — add link in CMS", "Instagram — shto link në CMS")}
               style={{ color: "rgba(244,246,249,0.2)", display: "flex", alignItems: "center", cursor: "default" }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
-              </svg>
+              <InstagramIcon />
             </span>
           )}
           {safeFacebook ? (
@@ -839,16 +940,12 @@ function Footer({ lang, social }: { lang: Lang; social: { instagram: string; fac
               style={{ color: "rgba(244,246,249,0.45)", textDecoration: "none", display: "flex", alignItems: "center", transition: "color 0.15s" }}
               onMouseEnter={(e) => (e.currentTarget.style.color = C.white)}
               onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(244,246,249,0.45)")}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
-              </svg>
+              <FacebookIcon />
             </a>
           ) : (
             <span title={tl("Facebook — add link in CMS", "Facebook — shto link në CMS")}
               style={{ color: "rgba(244,246,249,0.2)", display: "flex", alignItems: "center", cursor: "default" }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
-              </svg>
+              <FacebookIcon />
             </span>
           )}
         </div>

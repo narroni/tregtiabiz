@@ -1,6 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { CheckCircle2, Upload } from "lucide-react";
+import { InstagramIcon, FacebookIcon } from "../icons";
 import { isSafeHttpUrl, type CmsData, type CmsProject } from "./storage";
+import { resizeImageToJpegBase64 } from "./resizeImage";
 import siteData from "../content/site-data.json";
 
 // ── Palette (mirrors App.tsx) ─────────────────────────────────────────────────
@@ -18,8 +21,9 @@ type Tab = "projects" | "hero" | "social";
 type Session = "loading" | "authed" | "anon";
 
 const EMPTY_PROJECT: CmsProject = {
-  id: "", name: "", neighborhood: "", location: "", investor: "Tregtia Sh.p.k",
-  use: "Residential", img: "", images: [], alt: "", desc: "", specs: "",
+  id: "", neighborhood: "", location: "", investor: "Tregtia Sh.p.k",
+  use: "Residential", img: "", images: [], featured: false,
+  name: { en: "", sq: "" }, alt: { en: "", sq: "" }, desc: { en: "", sq: "" }, specs: { en: "", sq: "" },
 };
 
 function slugify(s: string) {
@@ -72,6 +76,48 @@ function Btn({ children, onClick, variant = "primary", small = false, danger = f
         opacity: disabled ? 0.6 : 1, display: "inline-flex", alignItems: "center", gap: 6 }}>
       {children}
     </motion.button>
+  );
+}
+
+// ── Upload-from-device button ─────────────────────────────────────────────────
+// Resizes/re-encodes the file client-side, then POSTs it to /api/cms/upload,
+// which commits it to the GitHub repo (there's no separate file storage) and
+// returns a relative URL — usable the same way as a pasted image URL.
+function UploadButton({ onUploaded, small = false }: { onUploaded: (url: string) => void; small?: boolean }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleFile = async (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setError("Please choose an image file."); return; }
+    setError(""); setUploading(true);
+    try {
+      const dataBase64 = await resizeImageToJpegBase64(file);
+      const res = await fetch("/api/cms/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dataBase64 }),
+      });
+      const body = await readJsonSafe(res);
+      if (!res.ok) { setError((body as { error?: string }).error || "Upload failed."); return; }
+      onUploaded((body as { url: string }).url);
+    } catch {
+      setError("Couldn't process that image — try a different file.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div>
+      <input ref={inputRef} type="file" accept="image/*" style={{ display: "none" }}
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; void handleFile(f); }} />
+      <Btn onClick={() => inputRef.current?.click()} variant="ghost" small={small} disabled={uploading}>
+        <Upload size={14} /> {uploading ? "Uploading…" : "Upload from device"}
+      </Btn>
+      {error && <div style={{ fontFamily: T.body, fontSize: 11, color: C.danger, marginTop: 6 }}>{error}</div>}
+    </div>
   );
 }
 
@@ -166,9 +212,18 @@ function ProjectEditor({ initial, onSave, onClose }: {
     });
   };
 
+  const [formLang, setFormLang] = useState<"en" | "sq">("en");
+  const updLoc = (field: "name" | "alt" | "desc" | "specs", v: string) =>
+    setP((prev) => ({ ...prev, [field]: { ...prev[field], [formLang]: v } }));
+
   const save = () => {
-    const id = p.id || slugify(p.name) || `project-${Date.now()}`;
-    onSave({ ...p, id, alt: p.alt || p.name });
+    const nameForId = p.name.en || p.name.sq;
+    const id = p.id || slugify(nameForId) || `project-${Date.now()}`;
+    const alt: typeof p.alt = {
+      en: p.alt.en || p.name.en,
+      sq: p.alt.sq || p.name.sq || p.name.en,
+    };
+    onSave({ ...p, id, alt });
   };
 
   return (
@@ -183,24 +238,44 @@ function ProjectEditor({ initial, onSave, onClose }: {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
-          <Field label="Project name *" value={p.name} onChange={(v) => upd("name", v)} />
           <Field label="Neighborhood" value={p.neighborhood} onChange={(v) => upd("neighborhood", v)} />
           <Field label="Location" value={p.location} onChange={(v) => upd("location", v)} />
           <Field label="Investor" value={p.investor} onChange={(v) => upd("investor", v)} />
           <Field label="Use" value={p.use} onChange={(v) => upd("use", v)} />
-          <Field label="Specs" value={p.specs} onChange={(v) => upd("specs", v)} placeholder="e.g. B+P+4 · 25 units" />
         </div>
-        <Field label="Description" value={p.desc} onChange={(v) => upd("desc", v)} multiline placeholder="Project description…" />
+
+        <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, cursor: "pointer" }}>
+          <input type="checkbox" checked={p.featured} onChange={(e) => setP((prev) => ({ ...prev, featured: e.target.checked }))} style={{ width: 15, height: 15, cursor: "pointer" }} />
+          <span style={{ fontFamily: T.body, fontSize: 13, color: C.body }}>Show on homepage (featured)</span>
+        </label>
+
+        {/* Language tabs for translatable fields */}
+        <div style={{ display: "flex", gap: 2, marginBottom: 16, borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: C.divider }}>
+          {(["en", "sq"] as const).map((l) => (
+            <button key={l} onClick={() => setFormLang(l)}
+              style={{ fontFamily: T.body, fontSize: 12, fontWeight: formLang === l ? 600 : 400, color: formLang === l ? C.brand : C.muted, background: "none", border: "none", cursor: "pointer", padding: "8px 14px", borderBottomWidth: 2, borderBottomStyle: "solid", borderBottomColor: formLang === l ? C.brand : "transparent", marginBottom: -1 }}>
+              {l === "en" ? "English" : "Shqip"}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+          <Field label={`Project name * (${formLang.toUpperCase()})`} value={p.name[formLang]} onChange={(v) => updLoc("name", v)} />
+          <Field label={`Specs (${formLang.toUpperCase()})`} value={p.specs[formLang]} onChange={(v) => updLoc("specs", v)} placeholder="e.g. B+P+4 · 25 units" />
+        </div>
+        <Field label={`Description (${formLang.toUpperCase()})`} value={p.desc[formLang]} onChange={(v) => updLoc("desc", v)} multiline placeholder="Project description…" />
+        <Field label={`Image alt text (${formLang.toUpperCase()}, optional — defaults to name)`} value={p.alt[formLang]} onChange={(v) => updLoc("alt", v)} placeholder={p.name[formLang] || "Describes the image for accessibility"} />
 
         {/* Images */}
         <div style={{ marginBottom: 14 }}>
-          <label style={{ fontFamily: T.body, fontSize: 11, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 8 }}>Images (URLs)</label>
-          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+          <label style={{ fontFamily: T.body, fontSize: 11, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 8 }}>Images</label>
+          <div style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "flex-start" }}>
             <input value={imgInput} onChange={(e) => setImgInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addImage()}
               placeholder="Paste image URL and press Enter"
               style={{ fontFamily: T.body, fontSize: 13, flex: 1, borderWidth: 1, borderStyle: "solid", borderColor: C.divider, borderRadius: 6, padding: "8px 12px", outline: "none" }} />
             <Btn onClick={addImage} small>Add</Btn>
+            <UploadButton small onUploaded={(url) => setP((prev) => ({ ...prev, images: [...prev.images, url], img: prev.img || url }))} />
           </div>
           {imgError && <div style={{ fontFamily: T.body, fontSize: 11, color: C.danger, marginBottom: 8 }}>{imgError}</div>}
           {p.images.length > 0 && (
@@ -268,7 +343,10 @@ function ProjectsTab({ data, onChange }: { data: CmsData; onChange: (d: CmsData)
               : <div style={{ width: 60, height: 42, background: C.surface, borderRadius: 5, flexShrink: 0 }} />
             }
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: T.body, fontSize: 14, fontWeight: 500, color: C.headline, marginBottom: 2 }}>{p.name}</div>
+              <div style={{ fontFamily: T.body, fontSize: 14, fontWeight: 500, color: C.headline, marginBottom: 2, display: "flex", alignItems: "center", gap: 6 }}>
+                {p.name.en || p.name.sq || "(untitled)"}
+                {p.featured && <span style={{ fontFamily: T.body, fontSize: 9, fontWeight: 600, color: C.brand, background: "rgba(30,90,168,0.1)", padding: "2px 6px", borderRadius: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>Featured</span>}
+              </div>
               <div style={{ fontFamily: T.body, fontSize: 11, color: C.muted }}>{p.neighborhood}{p.location ? ` · ${p.location}` : ""} · {p.images.length} image{p.images.length !== 1 ? "s" : ""}</div>
             </div>
             <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
@@ -326,6 +404,7 @@ function HeroTab({ data, onChange }: { data: CmsData; onChange: (d: CmsData) => 
           placeholder="Paste image URL and press Enter"
           style={{ fontFamily: T.body, fontSize: 13, flex: 1, borderWidth: 1, borderStyle: "solid", borderColor: C.divider, borderRadius: 6, padding: "9px 12px", outline: "none" }} />
         <Btn onClick={add}>Add image</Btn>
+        <UploadButton onUploaded={(url) => onChange({ ...data, heroImages: [...data.heroImages, url] })} />
       </div>
       {error && <div style={{ fontFamily: T.body, fontSize: 11, color: C.danger, marginBottom: 12 }}>{error}</div>}
 
@@ -357,13 +436,13 @@ function SocialTab({ data, onChange }: { data: CmsData; onChange: (d: CmsData) =
         Add your social profile URLs. They will appear as icon links in the site footer.
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-        <span style={{ fontSize: 22 }}>📸</span>
+        <InstagramIcon size={20} color={C.muted} style={{ flexShrink: 0 }} />
         <div style={{ flex: 1 }}>
           <Field label="Instagram URL" value={data.social.instagram} onChange={(v) => upd("instagram", v)} placeholder="https://instagram.com/tregtia" />
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <span style={{ fontSize: 22 }}>📘</span>
+        <FacebookIcon size={20} color={C.muted} style={{ flexShrink: 0 }} />
         <div style={{ flex: 1 }}>
           <Field label="Facebook URL" value={data.social.facebook} onChange={(v) => upd("facebook", v)} placeholder="https://facebook.com/tregtia" />
         </div>
@@ -480,7 +559,9 @@ export default function AdminPage() {
             )}
             {justPublished && !dirty && (
               <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                style={{ fontFamily: T.body, fontSize: 11, color: "#5cc87a" }}>✓ Published — live in about a minute</motion.span>
+                style={{ fontFamily: T.body, fontSize: 11, color: "#5cc87a", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <CheckCircle2 size={13} /> Published — live in about a minute
+              </motion.span>
             )}
           </AnimatePresence>
         </div>
