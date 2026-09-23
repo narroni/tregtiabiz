@@ -13,7 +13,7 @@ const C = {
   white: "#FFFFFF", danger: "#D94040",
 } as const;
 const T = {
-  display: "'Instrument Serif', Georgia, serif",
+  display: "'IBM Plex Serif', Georgia, serif",
   body: "'Geist', 'Inter', system-ui, sans-serif",
 };
 
@@ -187,9 +187,47 @@ function LoadingScreen() {
   );
 }
 
+// ── Neighborhood picker — reuse an existing one (keeps the homepage filter
+// pills tidy) or add a new one, which becomes its own filter automatically. ──
+function NeighborhoodField({ value, existing, onChange }: { value: string; existing: string[]; onChange: (v: string) => void }) {
+  const [addingNew, setAddingNew] = useState(!value || !existing.includes(value));
+
+  if (addingNew) {
+    return (
+      <div style={{ marginBottom: 14 }}>
+        <label style={{ fontFamily: T.body, fontSize: 11, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 5 }}>
+          Neighborhood {existing.length > 0 ? "(new)" : ""}
+        </label>
+        <input value={value} onChange={(e) => onChange(e.target.value)} placeholder="e.g. Kodrina"
+          style={{ fontFamily: T.body, fontSize: 13, color: C.headline, background: C.white, borderWidth: 1, borderStyle: "solid", borderColor: C.divider, borderRadius: 6, padding: "8px 12px", width: "100%", outline: "none", boxSizing: "border-box" }} />
+        {existing.length > 0 && (
+          <button type="button" onClick={() => setAddingNew(false)}
+            style={{ fontFamily: T.body, fontSize: 11, color: C.brand, background: "none", border: "none", cursor: "pointer", padding: "4px 0" }}>
+            Choose an existing neighborhood instead
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <label style={{ fontFamily: T.body, fontSize: 11, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 5 }}>Neighborhood</label>
+      <select
+        value={value}
+        onChange={(e) => { if (e.target.value === "__new__") setAddingNew(true); else onChange(e.target.value); }}
+        style={{ fontFamily: T.body, fontSize: 13, color: C.headline, background: C.white, borderWidth: 1, borderStyle: "solid", borderColor: C.divider, borderRadius: 6, padding: "8px 12px", width: "100%", outline: "none", boxSizing: "border-box" }}
+      >
+        {existing.map((n) => <option key={n} value={n}>{n}</option>)}
+        <option value="__new__">+ Add new neighborhood…</option>
+      </select>
+    </div>
+  );
+}
+
 // ── Project editor modal ──────────────────────────────────────────────────────
-function ProjectEditor({ initial, onSave, onClose }: {
-  initial: CmsProject; onSave: (p: CmsProject) => void; onClose: () => void;
+function ProjectEditor({ initial, existingNeighborhoods, onSave, onClose }: {
+  initial: CmsProject; existingNeighborhoods: string[]; onSave: (p: CmsProject) => void; onClose: () => void;
 }) {
   const [p, setP] = useState<CmsProject>(initial);
   const [imgInput, setImgInput] = useState("");
@@ -238,15 +276,19 @@ function ProjectEditor({ initial, onSave, onClose }: {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
-          <Field label="Neighborhood" value={p.neighborhood} onChange={(v) => upd("neighborhood", v)} />
+          <NeighborhoodField value={p.neighborhood} existing={existingNeighborhoods} onChange={(v) => upd("neighborhood", v)} />
           <Field label="Location" value={p.location} onChange={(v) => upd("location", v)} />
           <Field label="Investor" value={p.investor} onChange={(v) => upd("investor", v)} />
           <Field label="Use" value={p.use} onChange={(v) => upd("use", v)} />
         </div>
 
-        <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, cursor: "pointer" }}>
-          <input type="checkbox" checked={p.featured} onChange={(e) => setP((prev) => ({ ...prev, featured: e.target.checked }))} style={{ width: 15, height: 15, cursor: "pointer" }} />
-          <span style={{ fontFamily: T.body, fontSize: 13, color: C.body }}>Show on homepage (featured)</span>
+        <label style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 20, cursor: "pointer" }}>
+          <input type="checkbox" checked={p.featured} onChange={(e) => setP((prev) => ({ ...prev, featured: e.target.checked }))} style={{ width: 15, height: 15, cursor: "pointer", marginTop: 2 }} />
+          <span style={{ fontFamily: T.body, fontSize: 13, color: C.body, lineHeight: 1.5 }}>
+            Show on homepage (featured)
+            <br />
+            <span style={{ fontSize: 11, color: C.muted }}>Feature this on a few projects to curate the homepage — leave everything unchecked to show all projects there instead.</span>
+          </span>
         </label>
 
         {/* Language tabs for translatable fields */}
@@ -304,6 +346,7 @@ function ProjectEditor({ initial, onSave, onClose }: {
 // ── Projects tab ──────────────────────────────────────────────────────────────
 function ProjectsTab({ data, onChange }: { data: CmsData; onChange: (d: CmsData) => void }) {
   const [editing, setEditing] = useState<CmsProject | null>(null);
+  const existingNeighborhoods = Array.from(new Set(data.projects.map((p) => p.neighborhood).filter(Boolean))).sort((a, b) => a.localeCompare(b));
 
   const save = (p: CmsProject) => {
     const exists = data.projects.findIndex((x) => x.id === p.id);
@@ -360,7 +403,7 @@ function ProjectsTab({ data, onChange }: { data: CmsData; onChange: (d: CmsData)
       </div>
 
       <AnimatePresence>
-        {editing && <ProjectEditor initial={editing} onSave={save} onClose={() => setEditing(null)} />}
+        {editing && <ProjectEditor initial={editing} existingNeighborhoods={existingNeighborhoods} onSave={save} onClose={() => setEditing(null)} />}
       </AnimatePresence>
     </>
   );

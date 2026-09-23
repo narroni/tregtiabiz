@@ -30,7 +30,7 @@ const C = {
 } as const;
 
 const T = {
-  display: "'Instrument Serif', Georgia, serif",
+  display: "'IBM Plex Serif', Georgia, serif",
   body:    "'Geist', 'Inter', system-ui, -apple-system, sans-serif",
 } as const;
 
@@ -83,10 +83,6 @@ const PROCESS_STEPS = [
 
 const PRODUCTION_TAGS_EN = ["PVC windows — TROCAL system", "Metal fabrication", "Machinery servicing", "Glass processing", "Concrete production"];
 const PRODUCTION_TAGS_SQ = ["Dritare PVC — sistemi TROCAL", "Fabrikim metalesh", "Shërbim makinerie", "Përpunim xhami", "Prodhim betoni"];
-
-const NEIGHBORHOODS_EN = ["All", "Kodrina", "Aktash", "Fushë Kosovë"];
-const NEIGHBORHOODS_SQ = ["Të gjitha", "Kodrina", "Aktash", "Fushë Kosovë"];
-const NEIGHBORHOOD_KEYS = ["All", "Kodrina", "Aktash", "Fushë Kosovë"];
 
 const SLIDESHOW_INTERVAL = 4500;
 
@@ -145,7 +141,6 @@ function TLogo({ height = 28, dark = false }: { height?: number; dark?: boolean 
 // ── Nav — floating pill ───────────────────────────────────────────────────────
 const NAV_LINKS: { id: string; labelEn: string; labelSq: string }[] = [
   { id: "about",    labelEn: "About",    labelSq: "Rreth Nesh" },
-  { id: "kodrina",  labelEn: "Kodrina",  labelSq: "Kodrina"    },
   { id: "projects", labelEn: "Projects", labelSq: "Projektet"  },
   { id: "services", labelEn: "Services", labelSq: "Shërbimet"  },
   { id: "contact",  labelEn: "Contact",  labelSq: "Kontakt"    },
@@ -673,10 +668,19 @@ function Projects({ lang, projects, onSelectProject }: { lang: Lang; projects: P
   const hasCuration = curated.length > 0 && curated.length < projects.length;
   const baseList = hasCuration && !showAll ? curated : projects;
 
-  const filtered = filterKey === "All" ? baseList : baseList.filter((p) => p.neighborhood === filterKey);
-  const neighborLabels = lang === "en" ? NEIGHBORHOODS_EN : NEIGHBORHOODS_SQ;
-  const heroCard = filtered[0];
-  const rest = filtered.slice(1);
+  // Filter pills are derived from whatever neighborhoods actually exist in
+  // the CMS data (not a fixed list), so a newly-added project's neighborhood
+  // automatically gets its own filter. Picking a specific neighborhood
+  // searches everything, not just the curated homepage set.
+  const neighborhoods = Array.from(new Set(projects.map((p) => p.neighborhood).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  const filterOptions = ["All", ...neighborhoods];
+  const filtered = filterKey === "All" ? baseList : projects.filter((p) => p.neighborhood === filterKey);
+
+  // A single result on its own looks odd blown up into the big "hero" card,
+  // so only use that treatment when there's more than one to show alongside it.
+  const showHeroCard = filtered.length > 1;
+  const heroCard = showHeroCard ? filtered[0] : null;
+  const rest = showHeroCard ? filtered.slice(1) : filtered;
 
   return (
     <section id="projects" style={{ background: C.bg, padding: "clamp(80px,12vh,120px) 0", borderTop: `1px solid ${C.divider}` }}>
@@ -692,15 +696,16 @@ function Projects({ lang, projects, onSelectProject }: { lang: Lang; projects: P
             {tl("Projects", "Projektet")}
           </h2>
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-            {NEIGHBORHOOD_KEYS.map((key, i) => {
+            {filterOptions.map((key) => {
               const active = key === filterKey;
+              const label = key === "All" ? tl("All", "Të gjitha") : key;
               return (
                 <motion.button
                   key={key} onClick={() => setFilterKey(key)}
                   whileTap={{ scale: 0.95 }}
                   style={{ fontFamily: T.body, fontSize: 11, fontWeight: active ? 600 : 400, color: active ? C.white : C.body, background: active ? C.brand : "rgba(11,18,32,0.05)", border: "none", padding: "5px 12px", cursor: "pointer", borderRadius: 20, transition: "background 0.18s, color 0.18s" }}
                 >
-                  {neighborLabels[i]}
+                  {label}
                 </motion.button>
               );
             })}
@@ -1012,7 +1017,7 @@ export default function App() {
             projectId={(page as { type: "project"; id: string }).id}
             projects={activeProjects}
             lang={lang}
-            onBack={goHome}
+            onBack={() => goHomeAndScroll("projects")}
           />
         )}
       </AnimatePresence>

@@ -224,32 +224,6 @@
         "en": "5 buildings · B+P+7 · ~170 units · Basement parking · Green areas",
         "sq": "5 ndërtesa · B+P+7 · ~170 njësi · Parking në bodrum · Zona të gjelbra"
       }
-    },
-    {
-      "id": "test",
-      "neighborhood": "test",
-      "location": "test",
-      "investor": "Tregtia Sh.p.k",
-      "use": "Residential",
-      "img": "",
-      "images": [],
-      "featured": true,
-      "name": {
-        "en": "test",
-        "sq": "test"
-      },
-      "alt": {
-        "en": "test",
-        "sq": "test"
-      },
-      "desc": {
-        "en": "test",
-        "sq": "test"
-      },
-      "specs": {
-        "en": "test",
-        "sq": "test"
-      }
     }
   ],
   "heroImages": [
