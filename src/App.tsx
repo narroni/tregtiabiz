@@ -339,7 +339,7 @@ function Hero({ lang, heroImages }: { lang: Lang; heroImages: string[] }) {
           style={{ fontFamily: T.display, fontSize: "clamp(40px,4.2vw,62px)", fontWeight: 400, lineHeight: 1.0, color: C.headline, margin: "0 0 18px", letterSpacing: "-0.035em" }}
         >
           {tl("26 years of", "26 vjet duke")}<br />
-          <em style={{ fontStyle: "italic" }}>{tl("building Kosovo.", "ndërtuar Kosovën.")}</em>
+          {tl("building Kosovo.", "ndërtuar Kosovën.")}
         </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -452,7 +452,7 @@ function About({ lang }: { lang: Lang }) {
         >
           <h2 style={{ fontFamily: T.display, fontSize: "clamp(36px,4.5vw,58px)", fontWeight: 400, lineHeight: 1.05, color: C.headline, margin: "0 0 28px", letterSpacing: "-0.035em" }}>
             {tl("Built from", "Ndërtuar nga")}<br />
-            <em style={{ fontStyle: "italic", color: C.muted }}>{tl("the ruins up.", "rrënojat.")}</em>
+            {tl("the ruins up.", "rrënojat.")}
           </h2>
           <div style={{ borderLeftWidth: 2, borderLeftStyle: "solid", borderLeftColor: C.brand, paddingLeft: 18, marginBottom: 28 }}>
             <blockquote style={{ fontFamily: T.display, fontSize: "clamp(14px,1.6vw,18px)", fontStyle: "italic", color: C.headline, margin: 0, lineHeight: 1.65 }}>
@@ -562,7 +562,7 @@ function Services({ lang }: { lang: Lang }) {
           style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "12px clamp(32px,5vw,80px)", alignItems: isMobile ? "start" : "end", marginBottom: 40, paddingBottom: 32, borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: C.divider }}
         >
           <h2 style={{ fontFamily: T.display, fontSize: "clamp(32px,3.5vw,48px)", fontWeight: 400, lineHeight: 1.0, color: C.headline, margin: 0, letterSpacing: "-0.03em" }}>
-            {tl("What we", "Çfarë")}&nbsp;<em style={{ fontStyle: "italic", color: C.muted }}>{tl("deliver.", "ofrojmë.")}</em>
+            {tl("What we", "Çfarë")}&nbsp;{tl("deliver.", "ofrojmë.")}
           </h2>
           <p style={{ fontFamily: T.body, fontSize: 14, color: C.body, lineHeight: 1.7, margin: 0 }}>
             {tl("From concept to completed building — entirely in-house. One company, every stage.", "Nga koncepti deri tek ndërtesa e përfunduar — tërësisht brenda kompanisë. Një kompani, çdo fazë.")}
